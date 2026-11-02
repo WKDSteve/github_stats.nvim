@@ -51,6 +51,21 @@ local function resolve_format(filepath, target)
   return default_format, filepath .. default_ext, str_format("No extension given, defaulting to '%s'", default_ext)
 end
 
+---Run the writer for `format` and report through the shared `report`.
+---The csv/markdown writers are synchronous and return `ok, err`; the pdf writer
+---(pdfport.nvim, optional) is asynchronous and calls the callback it is given.
+---@param format string "csv"|"markdown"|"pdf"
+---@param report fun(ok: boolean, err: string?)
+---@param writers table<string, function>
+local function write_as(format, report, writers)
+  local writer = writers[format]
+  if format == "pdf" then
+    writer(report)
+  else
+    report(writer())
+  end
+end
+
 ---Execute export command
 ---@param args table Command arguments
 ---@see github_stats.export
@@ -112,11 +127,14 @@ function M.execute(args)
         return
       end
 
-      if format == "pdf" then
-        export.export_combined_summary_markdown_pdf(clones_results, views_results, filepath, report)
-      else
-        report(export.export_combined_summary_markdown(clones_results, views_results, filepath))
-      end
+      write_as(format, report, {
+        markdown = function()
+          return export.export_combined_summary_markdown(clones_results, views_results, filepath)
+        end,
+        pdf = function(done)
+          export.export_combined_summary_markdown_pdf(clones_results, views_results, filepath, done)
+        end,
+      })
 
       return
     end
@@ -127,11 +145,14 @@ function M.execute(args)
       return
     end
 
-    if format == "pdf" then
-      export.export_summary_markdown_pdf(metric, results, filepath, report)
-    else
-      report(export.export_summary_markdown(metric, results, filepath))
-    end
+    write_as(format, report, {
+      markdown = function()
+        return export.export_summary_markdown(metric, results, filepath)
+      end,
+      pdf = function(done)
+        export.export_summary_markdown_pdf(metric, results, filepath, done)
+      end,
+    })
 
     return
   end
@@ -146,20 +167,22 @@ function M.execute(args)
       return
     end
 
-    if format == "csv" then
-      report(
-        export.export_combined_csv(
+    write_as(format, report, {
+      csv = function()
+        return export.export_combined_csv(
           target,
           clones_stats and clones_stats.daily_breakdown or {},
           views_stats and views_stats.daily_breakdown or {},
           filepath
         )
-      )
-    elseif format == "pdf" then
-      export.export_combined_markdown_pdf(target, clones_stats, views_stats, filepath, report)
-    else
-      report(export.export_combined_markdown(target, clones_stats, views_stats, filepath))
-    end
+      end,
+      markdown = function()
+        return export.export_combined_markdown(target, clones_stats, views_stats, filepath)
+      end,
+      pdf = function(done)
+        export.export_combined_markdown_pdf(target, clones_stats, views_stats, filepath, done)
+      end,
+    })
 
     return
   end
@@ -175,13 +198,17 @@ function M.execute(args)
     return
   end
 
-  if format == "csv" then
-    report(export.export_daily_csv(target, metric, stats.daily_breakdown, filepath))
-  elseif format == "pdf" then
-    export.export_markdown_pdf(target, metric, stats, filepath, report)
-  else
-    report(export.export_markdown(target, metric, stats, filepath))
-  end
+  write_as(format, report, {
+    csv = function()
+      return export.export_daily_csv(target, metric, stats.daily_breakdown, filepath)
+    end,
+    markdown = function()
+      return export.export_markdown(target, metric, stats, filepath)
+    end,
+    pdf = function(done)
+      export.export_markdown_pdf(target, metric, stats, filepath, done)
+    end,
+  })
 end
 
 ---Get completion candidates
