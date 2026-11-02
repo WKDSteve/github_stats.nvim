@@ -185,7 +185,6 @@ function M.fetch_all(force, callback, opts)
   -- full fetch out by a day.
   local partial = false
   if not force and not should_fetch() then
-    local storage = require("github_stats.storage")
     local fresh = {}
     for _, repo in ipairs(repos) do
       if not storage.has_data(repo) then
