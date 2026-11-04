@@ -35,9 +35,6 @@ return {
       mode = "error",
       -- ui.nvim defines its Kit* highlight groups the first time a float is shown (bindings_spec).
       ignore_highlights = { "Kit" },
-      -- lib.nvim exports $NVIM_CONFIG_DIR (with its marker) when lib.nvim.fs.roots is first
-      -- required, so child processes resolve it too (export_spec, health_spec, usrcmds_spec).
-      ignore_env = { "NVIM_CONFIG_DIR", "LIB_NVIM_ROOTS_EXPORTED" },
     },
     -- A scheduled callback that throws after its case ended is a real failure.
     scheduled_error = "error",
