@@ -4,7 +4,7 @@
 
 - **Module:** `fetcher.lua` (`fetch_all`, `fetch_repo`, `should_fetch`), `api.lua`
 - **Usercmds:** `:GithubStats fetch [force]`
-- **Config:** `opts.fetch_interval_hours` (default `24`), `opts.max_parallel_fetches` (default `4`), `opts.progress_style` (default `"auto"`), `opts.notify_fetch` (default `true`)
+- **Config:** `opts.fetch_interval_hours` (default `24`), `opts.max_parallel_fetches` (default `4`), `opts.api_timeout_ms` (default `15000`: timeout of one GitHub API request, in ms), `opts.progress_style` (default `"auto"`), `opts.notify_fetch` (default `true`)
 
 Fetches clones, views, referrers, and paths (4 GitHub API calls per repo,
 run in parallel) for every configured repository. At most
