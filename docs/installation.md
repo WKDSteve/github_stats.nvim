@@ -2,7 +2,7 @@
 
 ## Requirements
 
-- **Neovim** >= 0.10.0 — `vim.uv` is used unguarded in `background.lua`,
+- **Neovim** >= 0.11.0 — `vim.uv` is used unguarded in `background.lua`,
   `dashboard/init.lua`, `dashboard/state.lua` and `health.lua`
 - **[lib.nvim](https://github.com/WKDSteve/lib.nvim)** — required, not optional: notifications, JSON I/O, the GitHub API client (and the curl client under it), the bounded fetch queue, the user-command composer and the cross-platform executable check all come from it.
   **Minimum: commit `ccd30b5` (2026-10-31) or newer.** Every API request goes through `lib.nvim.net.github`, which arrived in that commit; with an older lib.nvim the API module does not load at all. (`:GithubStats fetch` also needs `lib.nvim.async.map_limit` from `884fe61`, which the newer commit includes.) The API response cap (`api_max_response_bytes`) is handed to that client as `max_bytes`. `:checkhealth github_stats` reports an error when `lib.nvim.net.github` is missing and a warning when the client ignores the cap.

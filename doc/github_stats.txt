@@ -44,7 +44,7 @@ Features:~
 ==============================================================================
 REQUIREMENTS                                      *github_stats-requirements*
 
-• Neovim >= 0.10.0 (vim.uv is used unguarded)
+• Neovim >= 0.11.0 (vim.uv is used unguarded)
 • lib.nvim (required: notify, fs.json, net.github, net.curl, usercmd
   composer, cross.executable), commit ccd30b5 (2026-10-31) or newer: every
   API request goes through its net.github client, which an older lib.nvim
@@ -1241,7 +1241,7 @@ Solution:~
 
 Problem: Autocompletion not working~
 Solution:~
-    1. Check Neovim version: >= 0.10.0 required
+    1. Check Neovim version: >= 0.11.0 required
     2. Run: :checkhealth github_stats
     3. Verify configuration is loaded
 
