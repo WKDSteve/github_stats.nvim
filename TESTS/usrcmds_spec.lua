@@ -284,6 +284,28 @@ describe("usrcmds", function()
       assert.same({ true, true }, calls.fetch)
     end)
 
+    it("fetches nothing until a late answer, and only on 'Fetch anyway' (UI-05)", function()
+      local pending = {}
+      stub("lib.nvim.ui.dialog", {
+        choose = function(_, _, _, cb)
+          pending[#pending + 1] = cb
+        end,
+      })
+      package.loaded["github_stats.fetcher"].fetch_due = function()
+        return false, { since_hours = 2, interval_hours = 24 }
+      end
+      local fetch = require("github_stats.bindings.usrcmds.fetch")
+      local before = #calls.fetch
+
+      fetch.execute({ args = "" })
+      fetch.execute({ args = "" })
+      assert.equals(before, #calls.fetch, "nothing is fetched while the question is open")
+      pending[1](1)
+      assert.equals(before, #calls.fetch, "a late 'Not now' fetches nothing")
+      pending[2](2)
+      assert.equals(before + 1, #calls.fetch, "a late 'Fetch anyway' fetches once")
+    end)
+
     it("completes the force keyword only while it still matches", function()
       local fetch = require("github_stats.bindings.usrcmds.fetch")
 
