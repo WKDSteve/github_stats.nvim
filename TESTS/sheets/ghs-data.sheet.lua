@@ -18,13 +18,13 @@ return {
     { expect = [[_G.noted("File must have .csv, .md or .pdf extension")]], note = "another extension is refused" },
     { lua = [[_G.forget(); vim.cmd("GithubStats digest")]] },
     {
-      expect = [[not _G.noted("Digest error")]],
-      note = "digest rebuilds the per-repository digest without an error",
+      expect = [[_G.noted("Digest: 1 written, 0 unchanged, 0 without history") and not _G.noted("Digest error")]],
+      note = "digest writes the one repository's digest, without an error",
     },
     { lua = [[_G.forget(); vim.cmd("GithubStats compact dry-run")]] },
     {
-      expect = [[not _G.noted("Retention error")]],
-      note = "compact dry-run previews the archive without an error",
+      expect = [[_G.noted("Dry run: archived ") and _G.noted("would remove") and not _G.noted("Retention error")]],
+      note = "compact dry-run only previews the archive, without an error",
     },
     { expect = [[vim.fn.filereadable(_G.out .. "/Clones.csv") == 1]], note = "and the stored files are still there" },
     { lua = [[vim.cmd("GithubStats debug")]] },
