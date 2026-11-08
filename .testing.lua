@@ -10,7 +10,7 @@ return {
   dialect = "auto",
   -- Dependencies (directory names) put on the runtimepath: $<NAME>_DIR, .deps/<name>, ../<name>,
   -- stdpath('data')/lazy/<name>.
-  deps = { "lib.nvim", "ui.nvim" },
+  deps = { "lib.nvim", "ui.nvim", "testing.nvim" },
   -- "none" = all specs in one nvim, "file" = one nvim per spec file
   -- (nothing leaks from one file into the next). Needed: specs call setup() and fill module
   -- caches, which must not carry over from one file into the next.
@@ -53,8 +53,12 @@ return {
       -- The statusline reads the repository slug with `git remote get-url origin`
       -- (read-only, local; statusline_spec runs it against the repo and temp dirs).
       "git",
+      -- sheets_spec.lua runs every test sheet (TESTS/sheets/) in a child editor of its own.
+      "nvim",
     },
   },
+  -- a sheet's child editor outlives the default case and file limits on a machine under load
+  timeouts = { case_ms = 30000, file_ms = 300000 },
   -- The runner counts which commands, keymaps and autocommands the specs exercise (docs/SURFACE.md of testing.nvim);
   -- `scripts/test.sh surface` compares that with surface.baseline.json (a regression gate, not a percentage).
   surface = { track = true },
