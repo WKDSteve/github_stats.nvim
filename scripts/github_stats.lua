@@ -9,13 +9,22 @@
 --- lib.nvim is found through `$LIB_NVIM_DIR`, `$LIB_NVIM_PATH`, `$REPOS_DIR/lib.nvim`, `.deps/lib.nvim`, a sibling
 --- checkout, then lazy.nvim's data folder. Like every `nvim -l` script it reads its arguments from the global `arg`.
 --- Exit codes: 0 done, 1 a fetch or digest error, 2 usage/configuration, 3 environment.
+--- The copy of lib.nvim's `templates/cli_script.lua`, with the names filled in.
 
 -- Absolute: `nvim -l github_stats.lua` from inside scripts/ gives a bare relative name, and a relative plugin root
 -- would leave `github_stats.*` to be found in whatever runtimepath Neovim has (another checkout).
 local script = vim.fn.fnamemodify(debug.getinfo(1, "S").source:sub(2), ":p")
 local plugin_root = vim.fs.dirname(vim.fs.dirname(vim.fs.normalize(script)))
 
-vim.opt.rtp:prepend(plugin_root)
+---A path as ONE runtimepath entry: 'runtimepath' is a comma list, so a comma in a folder name must be escaped or the
+---path is split in two.
+---@param path string
+---@return string
+local function rtp_entry(path)
+  return (vim.fn.escape(path, ","))
+end
+
+vim.opt.rtp:prepend(rtp_entry(plugin_root))
 
 ---@param dir string|nil
 ---@return boolean
@@ -44,7 +53,7 @@ if not lib then
   io.stderr:write("error: lib.nvim not found (set LIB_NVIM_DIR, or REPOS_DIR with a lib.nvim checkout)\n")
   os.exit(3)
 end
-vim.opt.rtp:append(lib)
+vim.opt.rtp:append(rtp_entry(lib))
 
 local argv = {}
 for i = 1, #(arg or {}) do

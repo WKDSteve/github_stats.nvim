@@ -89,6 +89,47 @@ describe("cli", function()
     vim.fn.delete(tmp, "rf")
   end)
 
+  describe("scripts/github_stats.lua", function()
+    ---Run the script of a copy of the plugin in a child Neovim.
+    ---@param root string the copy
+    ---@param argv string[]
+    local function child(root, argv)
+      local cmd = { vim.v.progpath, "--headless", "-u", "NONE", "-i", "NONE", "-n", "-l", root .. "/scripts/github_stats.lua" }
+      vim.list_extend(cmd, argv)
+      local lib = vim.api.nvim_get_runtime_file("lua/lib/nvim/init.lua", false)[1]
+      local lib_dir = vim.fs.dirname(vim.fs.dirname(vim.fs.dirname(vim.fs.dirname(vim.fs.normalize(lib)))))
+      return vim.system(cmd, { text = true, env = { LIB_NVIM_DIR = lib_dir, NVIM = "" } }):wait(60000)
+    end
+
+    ---A copy of lua/ and scripts/ below `root`.
+    ---@param root string
+    local function copy_plugin(root)
+      local here = vim.fs.dirname(vim.fs.dirname(vim.fs.normalize(debug.getinfo(1, "S").source:sub(2))))
+      for _, sub in ipairs({ "lua", "scripts" }) do
+        for name, kind in vim.fs.dir(here .. "/" .. sub, { depth = 10 }) do
+          local from, to = here .. "/" .. sub .. "/" .. name, root .. "/" .. sub .. "/" .. name
+          if kind == "directory" then
+            vim.fn.mkdir(to, "p")
+          else
+            vim.fn.mkdir(vim.fs.dirname(to), "p")
+            vim.fn.writefile(vim.fn.readfile(from, "b"), to, "b")
+          end
+        end
+      end
+    end
+
+    it("hands the arguments to the module and exits with its code, also from a folder with a comma", function()
+      local root = tmp .. "/a,b"
+      copy_plugin(root)
+      local help = child(root, { "help" })
+      assert.equals(0, help.code, help.stderr)
+      assert.matches("usage:", help.stdout)
+      local bad = child(root, { "collect", "--bogus" })
+      assert.equals(2, bad.code)
+      assert.matches("unknown option %-%-bogus", bad.stderr)
+    end)
+  end)
+
   describe("parse", function()
     it("reads the command, flags and values", function()
       local opts = assert(cli.parse({ "collect", "--force", "--repos=a/b, c/d", "--timeout=30", "--format=json" }))
