@@ -31,6 +31,7 @@ is the short version of all of it.
 | [FEATURES/README.md](FEATURES/README.md) | The feature catalog: one page per area, each naming its modules, commands, config keys, and the decision behind it |
 | [architecture.md](architecture.md) | The on-disk data layout and which GitHub API endpoints are used |
 | [background-fetching.md](background-fetching.md) | How the silent fetch and discovery cycle works under the hood — the implementation counterpart to the configuration in [WORKFLOW.md](WORKFLOW.md) |
+| [cli.md](cli.md) | Collecting and reporting without the editor (`scripts/github_stats.lua`), for a scheduler or CI |
 | [performance.md](performance.md) | Storage footprint, fetch timings, and where the rate limits bite |
 
 ## Working on it

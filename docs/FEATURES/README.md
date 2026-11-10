@@ -14,6 +14,7 @@ into [the documentation index](../README.md).
 | [DASHBOARD.md](DASHBOARD.md) | The interactive full-buffer dashboard: rendering, sorting, time ranges, trend, sparklines, the read memo, highlighting, refresh actions, and the context menu |
 | [COMMANDS.md](COMMANDS.md) | The single `:GithubStats <subcommand>` verb and its completion model |
 | [FETCHING.md](FETCHING.md) | Fetching traffic data, the silent background cycle, and repository auto-discovery via `watch_users` |
+| [../cli.md](../cli.md) | The headless entry `scripts/github_stats.lua` (`collect`, `report`; module `cli.lua`): one background cycle run to its end, exit codes 0/1/2/3 |
 | [DIGEST.md](DIGEST.md) | The per-repository traffic digest other programs read: the file contract, where it lives, discovery, and when it is written |
 | [RETENTION.md](RETENTION.md) | Archiving old clones/views and pruning stale referrers/paths snapshots |
 | [ANALYTICS.md](ANALYTICS.md) | The query engine, the report views built on it, ASCII charts, and period-over-period diffs |

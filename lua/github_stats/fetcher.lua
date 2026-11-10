@@ -155,14 +155,23 @@ end
 ---Fetch all repositories and metrics
 ---@param force boolean Whether to bypass interval check
 ---@param callback? fun(summary: GHStats.FetchSummary) Optional completion callback
----@param opts? { background?: boolean } When `background` is true, this is a
+---@param opts? GHStats.FetchAllOpts When `background` is true, this is a
 ---  silent background cycle: the "starting fetch"/"no repos configured"/
 ---  "interval not elapsed" info notifications are suppressed, but the
 ---  "fetched N, M errors" notification still fires (still subject to
----  `notification_level`) so real problems aren't hidden.
+---  `notification_level`) so real problems aren't hidden. `on_settled` is
+---  called once everything the fetch set off is done (see GHStats.FetchAllOpts).
 function M.fetch_all(force, callback, opts)
   opts = opts or {}
   local background = opts.background == true
+  local on_settled = opts.on_settled
+
+  ---@param summary GHStats.FetchSummary
+  local function settle_empty(summary)
+    if on_settled then
+      on_settled({ summary = summary })
+    end
+  end
 
   local repos = config.get_repos()
 
@@ -170,9 +179,11 @@ function M.fetch_all(force, callback, opts)
     if not background then
       config.notify("[github-stats] No repositories configured", "warn")
     end
+    local summary = empty_summary()
     if callback then
-      callback(empty_summary())
+      callback(summary)
     end
+    settle_empty(summary)
     return
   end
 
@@ -195,9 +206,11 @@ function M.fetch_all(force, callback, opts)
       if notify_fetch == true and not background then
         config.notify("[github-stats] Fetch interval not elapsed (use 'force' to bypass)", "info")
       end
+      local summary = empty_summary()
       if callback then
-        callback(empty_summary())
+        callback(summary)
       end
+      settle_empty(summary)
       return
     end
     repos, partial = fresh, true
@@ -245,6 +258,13 @@ function M.fetch_all(force, callback, opts)
       save_last_fetch(os.time())
     end
 
+    -- Create summary (before retention: its callback may run at once and hands it on)
+    local summary = {
+      success = all_success,
+      errors = all_errors,
+      timestamp = os.date("%Y-%m-%dT%H:%M:%S"),
+    }
+
     -- Opportunistically fold old clones/views days into the archive and
     -- prune stale referrers/paths snapshots. Internally rate-limited to
     -- once/24h (github_stats.retention.maybe_run_all), so this is cheap on
@@ -279,15 +299,28 @@ function M.fetch_all(force, callback, opts)
       -- repositories that got any data this cycle. Deferred and pcall-wrapped
       -- inside write_later: a digest problem must never fail or slow a fetch.
       -- After retention, which moves days into the archive the digest reads.
-      require("github_stats.digest").write_later(repos_of(all_success))
+      -- A caller waiting for the end (the CLI, which exits afterwards) gets the
+      -- digest written at once instead, and is told how it went.
+      local with_data = repos_of(all_success)
+      if not on_settled then
+        require("github_stats.digest").write_later(with_data)
+        return
+      end
+      ---@type GHStats.FetchSettled
+      local settled = { summary = summary, retention = retention_summary }
+      if #with_data > 0 then
+        local ok, result = pcall(require("github_stats.digest").write, with_data, { skip_root = opts.skip_root == true })
+        if ok then
+          settled.digest = result
+        else
+          settled.digest_error = tostring(result)
+        end
+      end
+      -- Scheduled: retention may answer at once, and on_settled comes after the callback below.
+      vim.schedule(function()
+        on_settled(settled)
+      end)
     end)
-
-    -- Create summary
-    local summary = {
-      success = all_success,
-      errors = all_errors,
-      timestamp = os.date("%Y-%m-%dT%H:%M:%S"),
-    }
 
     -- Store for debug access
     M.last_fetch_summary = summary

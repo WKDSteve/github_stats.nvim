@@ -538,6 +538,100 @@ describe("fetcher", function()
       end)
     end)
 
+    describe("on_settled", function()
+      local real_digest, writes, later
+
+      before_each(function()
+        real_digest = package.loaded["github_stats.digest"]
+        writes, later = {}, nil
+        package.loaded["github_stats.digest"] = {
+          write = function(repos, o)
+            writes[#writes + 1] = { repos = repos, skip_root = o and o.skip_root }
+            return { written = repos, unchanged = {}, skipped = {}, errors = {} }
+          end,
+          write_later = function(repos)
+            later = repos
+          end,
+        }
+      end)
+
+      after_each(function()
+        package.loaded["github_stats.digest"] = real_digest
+      end)
+
+      it("comes after the callback, with the digests written at once instead of later", function()
+        local order = {}
+        local settled
+        fetcher.fetch_all(true, function()
+          order[#order + 1] = "callback"
+        end, {
+          on_settled = function(s)
+            order[#order + 1] = "settled"
+            settled = s
+          end,
+        })
+        wait_for(function()
+          return settled ~= nil
+        end)
+
+        assert.same({ "callback", "settled" }, order)
+        assert.equals(8, #settled.summary.success)
+        assert.same({ "owner/alpha", "owner/beta" }, settled.digest.written)
+        assert.equals(1, #writes)
+        assert.is_false(writes[1].skip_root)
+        assert.is_nil(later)
+      end)
+
+      it("passes skip_root on to the digest", function()
+        local settled
+        fetcher.fetch_all(true, nil, {
+          skip_root = true,
+          on_settled = function(s)
+            settled = s
+          end,
+        })
+        wait_for(function()
+          return settled ~= nil
+        end)
+        assert.is_true(writes[1].skip_root)
+      end)
+
+      it("reports a raising digest instead of failing the fetch", function()
+        package.loaded["github_stats.digest"].write = function()
+          error("disk full")
+        end
+        local settled
+        fetcher.fetch_all(true, nil, {
+          on_settled = function(s)
+            settled = s
+          end,
+        })
+        wait_for(function()
+          return settled ~= nil
+        end)
+        assert.matches("disk full", settled.digest_error)
+        assert.is_nil(settled.digest)
+        assert.equals(8, #settled.summary.success)
+      end)
+
+      it("is called on the early return too (interval not elapsed), with the summary only", function()
+        seed_data()
+        require("lib.nvim.fs.json").write(tmp_dir .. "/last_fetch.json", { timestamp = os.time() })
+        local settled
+        fetcher.fetch_all(false, nil, {
+          on_settled = function(s)
+            settled = s
+          end,
+        })
+        wait_for(function()
+          return settled ~= nil
+        end)
+        assert.same({}, settled.summary.success)
+        assert.is_nil(settled.digest)
+        assert.equals(0, #writes)
+      end)
+    end)
+
     it("counts errors in the summary and warns about them", function()
       api_responder = function(repo)
         if repo == "owner/beta" then

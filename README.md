@@ -74,6 +74,7 @@ each page answers.
 
 - [Features](docs/FEATURES/README.md) — the catalog: one page per area, each naming its modules, commands and config keys.
 - [Background fetching](docs/background-fetching.md) — when it fetches, and what it costs.
+- [Collecting without the editor](docs/cli.md) — `scripts/github_stats.lua collect|report` for a scheduler or CI, so no 14-day window is missed.
 - [Workflow](docs/WORKFLOW.md) — how the pieces combine over a session, day to day.
 - [Architecture](docs/architecture.md) — module layout and the storage format.
 - [Digest](docs/FEATURES/DIGEST.md) — the small per-repository file that lets another program (a desktop app, another plugin) show this traffic without a token: where it is, what is in it, how to find it.

@@ -28,6 +28,22 @@
 ---@field errors table<string, string> Map of repo/metric to error message
 ---@field timestamp string ISO timestamp when fetch completed
 
+---What `fetcher.fetch_all` hands `opts.on_settled` once everything a fetch set off is done.
+---@class GHStats.FetchSettled
+---@field summary GHStats.FetchSummary The same summary the callback got
+---@field retention? GHStats.RetentionSummary nil when retention did not run (once per 24 h) or nothing was fetched
+---@field digest? GHStats.Digest.WriteResult The digests written for the repositories that got data; nil when none did
+---@field digest_error? string Writing the digests raised (the fetch itself is not affected)
+
+---Options of `fetcher.fetch_all`.
+---@class GHStats.FetchAllOpts
+---@field background? boolean A silent background cycle: only the error summary and new repositories are announced
+---@field on_settled? fun(settled: GHStats.FetchSettled) Called once after the callback, when retention has run and
+---  the digests are written (synchronously, instead of on later loop turns); also on the early returns (no
+---  repositories, interval not elapsed), then with the summary only. For a caller that exits afterwards: the CLI.
+---@field skip_root? boolean With `on_settled`: write the digests but leave `root.json` alone (a run on other folders
+---  than the editor's must not repoint the pointer its readers follow)
+
 ---Daily metric data after deduplication
 ---@class GHStats.DailyMetricData
 ---@field count integer Total count
