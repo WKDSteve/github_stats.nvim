@@ -18,7 +18,7 @@ as in the editor: `token_source`, by default `$GITHUB_TOKEN`) and `lib.nvim`, wh
 
 | Command | What it does |
 | --- | --- |
-| `collect` | One background cycle, run to its end: discovers the repositories of `watch_users`, fetches every tracked repository (only when `fetch_interval_hours` has elapsed, unless `--force`; a repository without any data is fetched at once), runs retention and writes the [digests](FEATURES/DIGEST.md). |
+| `collect` | One background cycle, run to its end: rebuilds the digests that lag the (synced) history, discovers the repositories of `watch_users`, fetches every tracked repository (only when `fetch_interval_hours` has elapsed, unless `--force`; a repository without any data is fetched at once), runs retention and writes the [digests](FEATURES/DIGEST.md). |
 | `report` | Prints the traffic the history holds, per repository: views and clones of the last 7 and 30 complete days and the 7-day trend, computed exactly as the digest computes them. Never fetches. With `--format=json`: `{ schema, repos: [<digest>...], skipped, errors }`, each entry the [digest](FEATURES/DIGEST.md#digestowner_repojson) of one repository. |
 | `help` | The usage. |
 

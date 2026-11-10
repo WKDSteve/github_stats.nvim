@@ -277,11 +277,25 @@ local function collect(opts)
     end
   end
 
-  ---@type GHStats.FetchSettled|nil
-  local settled
   -- root.json sits at one fixed place and names where the digests are, for every reader. A run on other folders
   -- than the editor's (a trial, a second history) writes its digests but must not repoint it.
   local own_folders = opts.config_dir ~= nil or opts.data_dir ~= nil or opts.digest_dir ~= nil
+
+  -- First what every background cycle does first: the history is synced between machines, the digest is not, so a
+  -- fetch on the other machine leaves this one's digests behind while the interval keeps this run from fetching.
+  local digest = require("github_stats.digest")
+  local refresh_ok, refreshed = pcall(function()
+    if not digest.stale() then
+      return nil
+    end
+    return digest.write(config.get_repos(), { skip_root = own_folders })
+  end)
+  if not refresh_ok then
+    config.notify(("[github-stats] Rebuilding the stale digests failed: %s"):format(tostring(refreshed)), "warn")
+  end
+
+  ---@type GHStats.FetchSettled|nil
+  local settled
   require("github_stats.fetcher").fetch_all(opts.force, nil, {
     background = true,
     skip_root = own_folders,
@@ -299,7 +313,8 @@ local function collect(opts)
 
   local summary = settled.summary
   local digest_errors = settled.digest and settled.digest.errors or {}
-  local failed = next(summary.errors) ~= nil
+  local failed = not refresh_ok
+    or next(summary.errors) ~= nil
     or next(digest_errors) ~= nil
     or settled.digest_error ~= nil
     or next(discovery_errors) ~= nil
@@ -316,6 +331,7 @@ local function collect(opts)
         digest = settled.digest,
         digest_error = settled.digest_error,
         root_written = settled.digest ~= nil and not own_folders,
+        refreshed = refresh_ok and refreshed and refreshed.written or nil,
         timestamp = summary.timestamp,
       })
     )
@@ -327,6 +343,9 @@ local function collect(opts)
     end
     for key, err in pairs(summary.errors) do
       say(io.stderr, ("error: %s: %s"):format(key, err))
+    end
+    if refresh_ok and refreshed and #refreshed.written > 0 then
+      say(io.stdout, ("stale digests rebuilt: %d"):format(#refreshed.written))
     end
     if settled.retention then
       say(io.stdout, ("retention: archived %d day(s)"):format(settled.retention.archived or 0))

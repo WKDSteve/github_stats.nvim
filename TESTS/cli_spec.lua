@@ -206,6 +206,22 @@ describe("cli", function()
       assert.matches("nothing fetched", stdout())
     end)
 
+    it("collect rebuilds a stale digest first, also when the interval keeps it from fetching", function()
+      assert.equals(0, run(args({ "collect", "--force", "--repos=owner/alpha" })))
+      -- the other machine fetched: the digest names an older fetch than the (synced) history has
+      local file = tmp .. "/dig/digest/owner_alpha.json"
+      local doc = vim.json.decode(table.concat(vim.fn.readfile(file), "\n"))
+      doc.fetched = "2000-01-01T00:00:00Z"
+      vim.fn.writefile({ vim.json.encode(doc) }, file)
+
+      assert.equals(0, run(args({ "collect", "--repos=owner/alpha", "--format=json" })))
+      local result = vim.json.decode(stdout())
+      assert.equals(0, result.fetched, "inside the interval nothing is fetched")
+      assert.same({ "owner/alpha" }, result.refreshed)
+      local rebuilt = vim.json.decode(table.concat(vim.fn.readfile(file), "\n"))
+      assert.are_not.equal("2000-01-01T00:00:00Z", rebuilt.fetched)
+    end)
+
     it("report prints the history as the digest computes it, and names a repository without one", function()
       assert.equals(0, run(args({ "collect", "--force", "--repos=owner/alpha" })))
       assert.equals(0, run(args({ "report", "--repos=owner/alpha,owner/never", "--format=json" })))
