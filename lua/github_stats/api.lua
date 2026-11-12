@@ -148,39 +148,10 @@ local function max_user_repo_pages()
   return (type(n) == "number" and n > 0) and n or 30
 end
 
----@internal
----Fetch a single page of a user's public repositories
----@param username string GitHub username
----@param page integer Page number (1-based)
----@param token string? GitHub token (optional; public listing works without one, but an
----  authenticated request gets a much higher rate limit)
----@param callback fun(repo_names: string[]|nil, err: string?, page_count: integer)
-local function fetch_user_repos_page(username, page, token, callback)
-  local path = string.format("/users/%s/repos?per_page=100&page=%d", username, page)
-
-  fetch_json(path, token, function(data, err)
-    if not data then
-      callback(nil, err, 0)
-      return
-    end
-
-    if type(data) ~= "table" then
-      callback(nil, "Unexpected response shape (expected array)", 0)
-      return
-    end
-
-    local names = {}
-    for _, repo in ipairs(data) do
-      if type(repo) == "table" and type(repo.full_name) == "string" then
-        table.insert(names, repo.full_name)
-      end
-    end
-
-    callback(names, nil, #data)
-  end)
-end
-
 ---List all public repositories for a GitHub user, following pagination
+---
+---The paging itself (sequencing, page cap, keeping what arrived before a failing page) is
+---`lib.nvim.net.paginate`; this only turns one page into its `full_name`s.
 ---@param username string GitHub username
 ---@param callback fun(repo_names: string[]|nil, err: string?) Completion callback
 function M.list_user_repos(username, callback)
@@ -195,41 +166,37 @@ function M.list_user_repos(username, callback)
   -- endpoint itself works unauthenticated for public repos too.
   local token = config.get_token()
 
-  local all_names = {}
-
-  local function fetch_page(page)
-    if page > max_user_repo_pages() then
-      schedule(function()
-        callback(all_names, nil)
-      end)
-      return
-    end
-
-    fetch_user_repos_page(username, page, token, function(names, err, page_count)
-      if not names then
-        if page == 1 then
-          -- First page failed outright: propagate the error, nothing to return.
-          callback(nil, err)
+  require("lib.nvim.net.paginate").run({
+    per_page = 100,
+    max_pages = max_user_repo_pages(),
+    fetch = function(page, done)
+      local path = string.format("/users/%s/repos?per_page=100&page=%d", username, page)
+      fetch_json(path, token, function(data, err)
+        if not data then
+          done(nil, err or "no data")
+        elseif type(data) ~= "table" then
+          done(nil, "Unexpected response shape (expected array)")
         else
-          -- Later page failed after some pages succeeded: return what we have.
-          callback(all_names, err)
+          done(data)
         end
-        return
+      end)
+    end,
+    on_done = function(r)
+      local names = {}
+      for _, repo in ipairs(r.items) do
+        if type(repo) == "table" and type(repo.full_name) == "string" then
+          table.insert(names, repo.full_name)
+        end
       end
-
-      vim.list_extend(all_names, names)
-
-      if page_count < 100 then
-        -- Short page: this was the last one.
-        callback(all_names, nil)
-        return
+      if r.err and not r.partial then
+        -- First page failed outright: propagate the error, nothing to return.
+        callback(nil, r.err)
+      else
+        -- Complete, capped, or a later page failed after some succeeded: what we have.
+        callback(names, r.err)
       end
-
-      fetch_page(page + 1)
-    end)
-  end
-
-  fetch_page(1)
+    end,
+  })
 end
 
 -- CDX: no in-repo callers; kept as public API on `github_stats.api` for
