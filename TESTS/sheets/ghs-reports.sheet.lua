@@ -2,6 +2,7 @@
 -- the :GithubStats section of BINDINGS-RUNTIME-CHECKLIST.md). Seeded with two months of clones and views of me/proj.
 return {
   id = "ghs.reports",
+  feature = "github_stats.reports",
   title = ":GithubStats show, summary, diff and chart on stored data",
   task = "github_stats.nvim/testblatt-bindings-checkliste",
   sizes = { { rows = 40, cols = 120 } },

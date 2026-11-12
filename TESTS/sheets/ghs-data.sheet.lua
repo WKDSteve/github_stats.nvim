@@ -1,6 +1,7 @@
 -- Live check: `:GithubStats export`, `digest`, `compact dry-run` and `debug` on stored data.
 return {
   id = "ghs.data",
+  feature = "github_stats.export",
   title = ":GithubStats export, digest, compact dry-run and debug",
   task = "github_stats.nvim/testblatt-bindings-checkliste",
   sizes = { { rows = 40, cols = 120 } },
