@@ -180,7 +180,9 @@ describe("health", function()
 
       health_mod.check()
 
-      assert.is_true(reported("error", "No repositories configured"))
+      -- Not an error: the default list is empty, nothing is broken until the user chooses (conformance K6).
+      assert.is_true(reported("warn", "No repositories configured yet"))
+      assert.is_false(reported("error", "No repositories configured"))
     end)
 
     it("accepts watch_users alone, and names the users", function()

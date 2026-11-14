@@ -49,7 +49,10 @@ end
 --- when `next(opts) ~= nil` -- which is never true for an empty call -- so
 --- running `:checkhealth` silently reverted the session to config.json-over-
 --- defaults for its remaining lifetime.
----@return boolean, string # Success flag, message
+---@return boolean ok
+---@return string message
+---@return "warn"|"error"|nil level of a failure: an empty list is "warn" (nothing is broken, the user has yet to
+---  choose what to track: the default is empty since the setup guide asks), a malformed entry "error"
 local function check_config()
   local cfg = config.get()
   if not cfg then
@@ -61,7 +64,9 @@ local function check_config()
 
   -- Check repos: either an explicit list, or usernames to auto-discover from
   if not has_static_repos and not has_watch_users then
-    return false, "No repositories configured (set 'repos' or 'watch_users'). Edit config.json or plugin initialization."
+    return false,
+      "No repositories configured yet (set 'repos' or 'watch_users' in config.json or setup(); :GithubStats setup asks when it creates a data repository)",
+      "warn"
   end
 
   -- Validate each explicitly configured repo (discovered repos are
@@ -365,11 +370,11 @@ function M.check()
   vim.health.start("GitHub Stats Configuration")
 
   -- Check config
-  local config_ok, config_msg = check_config()
+  local config_ok, config_msg, config_level = check_config()
   if config_ok then
     health.ok(config_msg)
   else
-    health.error(config_msg)
+    health[config_level or "error"](config_msg)
   end
 
   -- Remote mode: this machine never fetches (github_stats.remote), the data repository's workflow does with its
