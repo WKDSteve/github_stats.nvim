@@ -19,6 +19,16 @@ local str_format = string.format
 ---@param args table Command arguments from nvim_create_user_command
 function M.execute(args)
   local dry_run = args.args == "dry-run"
+  -- Remote mode: the workflow runs retention in the data repository. Archiving here would change the clone on its
+  -- own (a different _archive.json, deleted files), and every later fast-forward pull would refuse. A dry run only
+  -- reads, so it stays allowed.
+  if not dry_run and require("github_stats.remote").active() then
+    config.notify(
+      "[github-stats] Remote mode: the data repository's workflow archives and prunes; compact only runs as 'dry-run' here",
+      "warn"
+    )
+    return
+  end
   local cfg = config.get_retention()
 
   local summary = retention.run_all({

@@ -273,16 +273,34 @@ local function after_new_data()
   end)
 end
 
----One sync: push a changed config.json, then pull. `quiet` reports failures only.
+---Callers waiting for the sync that is running; nil while none runs. Two at once would race for git's index lock
+---(the background cycle and a dashboard refresh), so a second caller waits for the first one's result instead.
+---@type (fun(ok: boolean, err: string|nil, changed: boolean))[]|nil
+local waiting = nil
+
+---One sync: push a changed config.json, then pull. `quiet` reports failures only. While one runs, a second call
+---gets that one's result.
 ---@param on_done? fun(ok: boolean, err: string|nil, changed: boolean)
 ---@param quiet? boolean
 ---@return nil
 function M.sync(on_done, quiet)
+  if waiting then
+    if on_done then
+      waiting[#waiting + 1] = on_done
+    end
+    return
+  end
+  waiting = {}
+  if on_done then
+    waiting[1] = on_done
+  end
   local config = require("github_stats.config")
   local s = current
   local function finish(ok, err, changed)
-    if on_done then
-      on_done(ok, err, changed)
+    local callers = waiting or {}
+    waiting = nil
+    for _, cb in ipairs(callers) do
+      pcall(cb, ok, err, changed)
     end
   end
   if not s or M.status(s) ~= "ready" then

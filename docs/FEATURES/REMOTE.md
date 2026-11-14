@@ -86,6 +86,8 @@ classic token.
 - `:GithubStats fetch` starts the workflow instead of fetching here, and pulls its
   result a little later.
 - The dashboard's refresh keys pull instead of fetching.
+- `:GithubStats compact` only runs as `dry-run`: the workflow archives and prunes, and a
+  clone that did it on its own could no longer be fast-forwarded.
 - This machine never fetches in remote mode: a second fetcher would fetch twice and
   leave files in a clone nobody commits.
 - To track another repository, edit `config.json` in the clone (`:checkhealth github_stats`

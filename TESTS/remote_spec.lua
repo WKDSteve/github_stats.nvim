@@ -255,6 +255,62 @@ describe("remote", function()
       assert.equals(0, invalidated)
     end)
 
+    it("runs one sync at a time: a second caller gets the running one's result, git is asked once", function()
+      local pending
+      answer("git -C " .. tmp .. "/vault pull", function()
+        return { held = true }
+      end)
+      local real = proc.exec
+      proc.exec = function(cmd, opts, on_done)
+        if line(cmd):find(" pull ", 1, true) and not pending then
+          calls[#calls + 1] = { cmd = cmd, opts = opts }
+          pending = function()
+            on_done({ ok = true, code = 0, stdout = "", stderr = "" })
+          end
+          return
+        end
+        real(cmd, opts, on_done)
+      end
+      local results = {}
+      remote.sync(function(ok)
+        results[#results + 1] = ok
+      end, true)
+      remote.sync(function(ok)
+        results[#results + 1] = ok
+      end, true)
+      assert.same({}, results)
+      pending()
+      assert.same({ true, true }, results)
+      local pulls = 0
+      for _, c in ipairs(calls) do
+        if line(c.cmd):find(" pull ", 1, true) then
+          pulls = pulls + 1
+        end
+      end
+      assert.equals(1, pulls)
+      -- and the next one starts afresh
+      remote.sync(function(ok)
+        results[#results + 1] = ok
+      end, true)
+      assert.equals(3, #results)
+    end)
+
+    it("leaves compacting to the workflow: :GithubStats compact only runs as a dry run", function()
+      local retention = require("github_stats.retention")
+      local real_run = retention.run_all
+      local runs = {}
+      retention.run_all = function(opts)
+        runs[#runs + 1] = opts.dry_run
+        return { archived = 0, compacted_deleted = 0, pruned_deleted = 0, freed_bytes = 0, errors = {} }
+      end
+      package.loaded["github_stats.bindings.usrcmds.compact"] = nil
+      local compact = require("github_stats.bindings.usrcmds.compact")
+      compact.execute({ args = "" })
+      compact.execute({ args = "dry-run" })
+      retention.run_all = real_run
+      assert.same({ true }, runs)
+    end)
+
     it("refuses without a data repository", function()
       remote.set_current(remote.resolve({ storage = "local" }, {}))
       local result
