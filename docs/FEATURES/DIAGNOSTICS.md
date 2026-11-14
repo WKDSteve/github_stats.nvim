@@ -13,7 +13,9 @@ distinguishing 401/403/404 from a generic failure). Its *Storage* section
 first names where the history lives ([REMOTE.md](REMOTE.md)): remote with the
 data repository and its clone, local, or, as `info` since nothing has to be
 done, remote not yet set up (fetching locally meanwhile) or not yet cloned
-(it is cloned on the next start). It reads back the
+(it is cloned on the next start). In remote mode this machine does not fetch,
+so a missing token or `curl` is reported as `info` (the workflow fetches with
+its secret `GH_STATS_TOKEN`) and the live API probe is skipped. It reads back the
 configuration `setup()` already loaded rather than re-initializing it, so it
 reports "Configuration not loaded" if run before `setup()` has ever run.
 

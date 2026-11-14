@@ -372,10 +372,18 @@ function M.check()
     health.error(config_msg)
   end
 
+  -- Remote mode: this machine never fetches (github_stats.remote), the data repository's workflow does with its
+  -- own secret. A token, curl and the API probe are then nothing this machine needs, so their absence is no error
+  -- (UI-57).
+  local remote_mode = require("github_stats.remote").active()
+  local remote_note = "not needed in remote mode: the data repository's workflow fetches with its secret GH_STATS_TOKEN"
+
   -- Check token
   local token_ok, token_msg = check_token()
   if token_ok then
     health.ok(token_msg)
+  elseif remote_mode then
+    health.info(str_format("%s (%s)", token_msg, remote_note))
   else
     health.error(token_msg, {
       "Set GITHUB_TOKEN environment variable",
@@ -389,7 +397,12 @@ function M.check()
   do
     local cfg = config.get()
     local background_enabled = not cfg or not cfg.background or cfg.background.enabled ~= false
-    if background_enabled then
+    if background_enabled and remote_mode then
+      local s = require("github_stats.remote").current() --[[@as GHStats.Storage]]
+      health.ok(
+        str_format("Background cycle enabled: pulls the data repository every %d min (remote mode)", s.pull_interval_minutes)
+      )
+    elseif background_enabled then
       health.ok("Background fetch enabled (silent; only errors are notified)")
     else
       health.info("Background fetch disabled (background.enabled = false) - manual :GithubStats fetch only")
@@ -421,6 +434,8 @@ function M.check()
   local curl_ok, curl_msg = check_curl()
   if curl_ok then
     health.ok(curl_msg)
+  elseif remote_mode then
+    health.info(str_format("%s (%s)", curl_msg, remote_note))
   else
     health.error(curl_msg, {
       "Linux/Debian/Ubuntu: sudo apt install curl",
@@ -480,7 +495,9 @@ function M.check()
   health.start("GitHub Stats API Connectivity")
 
   -- Synchronous API check with timeout
-  if config_ok and token_ok and curl_ok then
+  if remote_mode then
+    health.info("Skipped in remote mode: this machine does not fetch; the workflow's run log shows fetch problems")
+  elseif config_ok and token_ok and curl_ok then
     health.info("Testing API connection (max 10 seconds)...")
 
     local api_ok, api_msg, duration_ms = check_api_sync()

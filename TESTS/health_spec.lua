@@ -233,6 +233,46 @@ describe("health", function()
     end)
   end)
 
+  describe("remote mode", function()
+    local real_remote
+
+    before_each(function()
+      real_remote = package.loaded["github_stats.remote"]
+      package.loaded["github_stats.remote"] = {
+        active = function()
+          return true
+        end,
+        current = function()
+          return { mode = "remote", repo = "me/data", dir = tmp_dir .. "/vault", pull_interval_minutes = 60 }
+        end,
+        status = function()
+          return "ready"
+        end,
+      }
+      package.loaded["github_stats.health"] = nil
+      health_mod = require("github_stats.health")
+    end)
+
+    after_each(function()
+      package.loaded["github_stats.remote"] = real_remote
+    end)
+
+    it("needs no token, no curl and no API probe on this machine: info, never an error", function()
+      token, token_err = nil, "Environment variable GITHUB_TOKEN not set or empty"
+      curl_responder = function()
+        error("remote mode must not probe the API")
+      end
+
+      health_mod.check()
+
+      assert.is_true(reported("info", "not needed in remote mode"))
+      assert.is_false(reported("error", "Token error"))
+      assert.is_true(reported("info", "Skipped in remote mode"))
+      assert.is_true(reported("ok", "pulls the data repository every 60 min"))
+      assert.is_true(reported("ok", "remote mode: data repository me/data"))
+    end)
+  end)
+
   describe("background", function()
     it("reports the cycle as enabled by default", function()
       health_mod.check()
