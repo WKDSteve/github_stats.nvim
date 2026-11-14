@@ -9,6 +9,11 @@
 - **[ui.nvim](https://github.com/WKDSteve/ui.nvim)** — also required, not optional: `require("github_stats")` itself pulls in `ui.kit`/`ui.contextmenu` (the dashboard's note popups and right-click menu) at module load, before `setup()` even runs
 - **curl** (for API requests)
 - **GitHub Personal Access Token** with `repo` permission
+- **git** — remote mode (the default) clones and pulls the data repository
+- **[GitHub CLI](https://cli.github.com) (`gh`)**, logged in — once, for the setup guide of remote
+  mode (creating or finding the data repository, its secret, the first run). A machine with
+  `storage = { repo = ... }` in its spec only clones, through `gh` when it is there and plain
+  `git` otherwise. Not needed with `storage = "local"`.
 
 Optional: [pdfport.nvim](https://github.com/WKDSteve/pdfport.nvim) for
 `.pdf` export, and [nvzone/menu](https://github.com/nvzone/menu) for the
@@ -24,9 +29,19 @@ See [Preparation](configurations/PREPARATION.md) for a full walkthrough of creat
 | **`lazy = false`** | Loads immediately | Right from the start | Want the daily auto-fetch guaranteed from the first frame |
 | **`event = "VimEnter"`** | After UI init | After editor UI ready | **Recommended** — daily auto-fetch / dashboard auto-open timing, minimal startup impact |
 
-`event = "VimEnter"` is the point of the plugin: the background collector has
-to be running for there to be any history to analyse later. A `cmd` trigger
-would mean it only ever collects on days you happened to open the dashboard.
+`event = "VimEnter"` is the point of the plugin: the background cycle has
+to be running for there to be any history to analyse later (in local mode it
+fetches, in remote mode it pulls what the workflow collected). A `cmd` trigger
+would mean it only ever runs on days you happened to open the dashboard, and
+the setup guide could not open by itself on the first start.
+
+Where the history lives is one more key, `storage` (default: remote, set up by
+the guide on the first start). See [Where the history lives](FEATURES/REMOTE.md):
+
+```lua
+opts = { storage = "local" }                               -- this Neovim fetches itself
+opts = { storage = { repo = "you/github-stats-vault" } }   -- remote, no guide on this machine
+```
 
 ## lazy.nvim
 

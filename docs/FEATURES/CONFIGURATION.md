@@ -25,5 +25,11 @@ switch.
 
 Both directories are resolved once in `M.init()` and read back through
 `M.get_config_dir()` / `M.get_storage_root()`; nothing else recomputes a
-path. Data lives under `config_dir/data` unless `data_dir` says otherwise —
-not under `stdpath('data')`.
+path. Data lives under `config_dir/data` unless `data_dir` says otherwise.
+
+`storage` is not an option of this store either: `github_stats.init` resolves
+it first (`github_stats.remote.resolve`), takes it out of the table like the
+two paths, and in remote mode hands the clone of the data repository to
+`M.init()` as `config_dir`. So in remote mode `config.json` is the data
+repository's own (shared with every machine and the workflow), and the
+`"file"` layer is that file. See [REMOTE.md](REMOTE.md).

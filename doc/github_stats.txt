@@ -1154,9 +1154,14 @@ Example - Visualization:~
 ==============================================================================
 STORAGE                                              *github_stats-storage*
 
+Where the tree lives depends on the mode (|github_stats-remote-mode|): the
+clone of the data repository, stdpath("data")/github_stats.nvim-vault/, in
+remote mode (the default; written by its workflow, except config.json), or
+`config_dir` in local mode.
+
 Data Structure:~
 >
-    ~/.config/nvim/lua/plugins/github-stats/
+    <clone> or <config_dir>/
     ├── config.json                    # User configuration (Option B)
     ├── last_fetch.json                # Interval tracking
     └── data/
@@ -1171,7 +1176,8 @@ Data Structure:~
 
 Custom Paths:~
 
-Default paths can be customized in setup():
+Default paths can be customized in setup() (either of them means local
+mode):
 >lua
     require("github_stats").setup({
       repos = { "username/repo" },

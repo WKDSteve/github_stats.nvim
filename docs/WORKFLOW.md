@@ -5,6 +5,15 @@ Every feature here is documented on its own elsewhere (`docs/FEATURES/`,
 question: once several features exist, *how do they actually combine* into
 a routine worth running regularly, and which combinations trip people up.
 
+## First session: the guide, then `:checkhealth`
+
+On the first start the setup guide asks where the history lives
+([FEATURES/REMOTE.md](FEATURES/REMOTE.md)). In remote mode the token that
+matters is the data repository's secret `GH_STATS_TOKEN`: the workflow
+fetches, this machine never does, and the checks below about this machine's
+token only matter for local mode. The workflow's run log on GitHub is where a
+fetch problem shows up.
+
 ## First session: `:checkhealth` before you trust any data
 
 Run `:checkhealth github_stats` before doing anything else in a new setup.
@@ -218,3 +227,14 @@ over). A key the plugin does not know and a value of the wrong type are
 reported with a hint (`fetch_intervall_hours` -> did you mean
 `fetch_interval_hours`) and left out, so the default applies; `config_dir`
 and `data_dir` are paths, not options.
+
+## Remote mode: the list of repositories lives in the data repository
+
+In remote mode the workflow reads only the data repository's `config.json`;
+it never sees your `setup()`. A `repos` (or `watch_users`) you pass to
+`setup()` still wins locally, so the dashboard would list repositories the
+workflow does not collect, or miss ones it does. Keep the list in the
+clone's `config.json` and out of `setup()`, then `:GithubStats sync` pushes
+it. The same goes for every option the collect step uses (`retention`,
+`watch_users`, `max_user_repo_pages`); options only the editor uses
+(`dashboard`, `progress_style`, `notification_level`) can stay in `setup()`.

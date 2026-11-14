@@ -1,5 +1,11 @@
 # Fetching, background cycle, and auto-discovery
 
+> In remote mode (the default, [REMOTE.md](REMOTE.md)) this machine never
+> fetches: `fetch_all` and `fetch_repo` pull the data repository instead (every
+> way in, the background cycle and the dashboard's refresh keys included), and
+> `:GithubStats fetch` starts the data repository's workflow. The workflow runs
+> exactly the fetch described here, through `scripts/github_stats.lua collect`.
+
 ## Traffic data fetching
 
 - **Module:** `fetcher.lua` (`fetch_all`, `fetch_repo`, `should_fetch`), `api.lua`

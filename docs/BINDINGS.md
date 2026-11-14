@@ -30,7 +30,9 @@ one bang slot shared across all its subcommands.
 
 | Command | Args | Description |
 |---|---|---|
-| `:GithubStats fetch` | `[force]` | Fetch all metrics, respecting (or bypassing) the configured interval |
+| `:GithubStats setup` | – | Setup guide: where the history lives (remote data repository or local) and what remote mode needs |
+| `:GithubStats sync` | – | Remote mode: push a changed `config.json`, pull the data repository |
+| `:GithubStats fetch` | `[force]` | Fetch all metrics, respecting (or bypassing) the configured interval; in remote mode start the workflow instead |
 | `:GithubStats show` | `{repo} {metric} [start] [end]` | Show detailed stats for a repository/metric |
 | `:GithubStats summary` | `{clones\|views}` | Aggregated summary across all configured repos |
 | `:GithubStats referrers` | `{repo} [limit]` | Top referrers for a repository |
@@ -38,7 +40,8 @@ one bang slot shared across all its subcommands.
 | `:GithubStats chart` | `{repo} {clones\|views\|both} [start] [end]` | ASCII sparkline/comparison chart |
 | `:GithubStats export` | `{repo\|all} {clones\|views\|both} {filepath}` | Export to CSV, Markdown, or PDF (`.pdf` needs pdfport.nvim) |
 | `:GithubStats diff` | `{repo} {metric} {period1} {period2}` | Compare two periods |
-| `:GithubStats compact` | `[dry-run]` | Archive old clones/views data and prune stale referrers/paths snapshots (use `dry-run` to preview) |
+| `:GithubStats compact` | `[dry-run]` | Archive old clones/views data and prune stale referrers/paths snapshots (use `dry-run` to preview; remote mode: dry-run only) |
+| `:GithubStats digest` | – | Rebuild the per-repository digest other programs read |
 | `:GithubStats debug` | – | Print configuration/token/last-fetch diagnostics |
 | `:GithubStats[!] dashboard` | – | Open the dashboard (`!` requests a forced refresh) |
 

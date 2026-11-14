@@ -9,6 +9,7 @@ This document explains common errors and how to resolve them.
 - [Configuration Issues](#configuration-issues)
 - [Network and API Problems](#network-and-api-problems)
 - [Storage Issues](#storage-issues)
+- [Remote Mode (Data Repository)](#remote-mode-data-repository)
 - [Notification Settings](#notification-settings)
 - [Diagnostic Commands](#diagnostic-commands)
 - [Getting Help](#getting-help)
@@ -487,6 +488,55 @@ Retention also runs by itself, at most once per 24h after a fetch. See
 # Show storage size
 du -sh ~/.config/nvim/lua/plugins/github-stats/data/
 ```
+
+---
+
+## Remote Mode (Data Repository)
+
+`:checkhealth github_stats`, section *Storage*, says which mode is in use and
+where the clone is. See [FEATURES/REMOTE.md](FEATURES/REMOTE.md) for how the
+mode works.
+
+### The workflow fails: "no GitHub token: Environment variable GH_STATS_TOKEN not set"
+
+The data repository has no secret `GH_STATS_TOKEN`. Set it (or run
+`:GithubStats setup`, which offers to):
+
+```bash
+gh secret set GH_STATS_TOKEN -R <owner>/<data-repository>
+gh secret list -R <owner>/<data-repository>   # must list GH_STATS_TOKEN
+```
+
+The token needs to read the traffic: a classic token with `repo`, or a
+fine-grained one with "Administration: read" on the tracked repositories (one
+owner per fine-grained token).
+
+### The workflow fails with exit code 1
+
+`collect` fetched, but some repository or metric failed (403 for a repository
+the token cannot read, 404 for a renamed one). What did arrive is still
+committed; the run log names the failing `owner/repo/metric`. Fix the list in
+`config.json` (then `:GithubStats sync`) or the token's access.
+
+### "Pulling ... failed: fatal: Not possible to fast-forward"
+
+The clone has local commits or changes besides `config.json`, so it can no
+longer follow the workflow. Nothing is overwritten. Look at the clone (path in
+`:checkhealth`) with `git status` / `git log origin/main..`, keep what you need,
+then reset it to `origin/main`, or delete the clone: it is cloned again on the
+next start.
+
+### "Cloning ... failed" on a new machine
+
+The machine cannot read the private data repository. With `gh` installed,
+`gh auth login`; otherwise make sure plain `git clone https://github.com/<owner>/<repo>.git`
+works with your credential helper. Until then the plugin fetches locally.
+
+### No new data although the workflow ran
+
+The editor pulls on start and every `storage.pull_interval_minutes` (default
+60). `:GithubStats sync` pulls now. `:GithubStats fetch` starts the workflow
+and pulls its result about two and a half minutes later.
 
 ---
 

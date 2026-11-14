@@ -9,6 +9,7 @@ is the short version of all of it.
 | --- | --- |
 | [installation.md](installation.md) | Requirements, loading strategies, and a spec per plugin manager |
 | [quickstart.md](quickstart.md) | The first thing to run after installing |
+| [FEATURES/REMOTE.md](FEATURES/REMOTE.md) | Where the history lives: a private data repository GitHub Actions fills (default) or this machine's folder; the setup guide |
 | [configurations/README.md](configurations/README.md) | The configuration guide as a whole: preparation, every option with its default, and the two ways to set them |
 | [troubleshooting.md](troubleshooting.md) | Common failures, what to run to diagnose them, and the fixes |
 | [cross-platform.md](cross-platform.md) | What differs on Windows, macOS and Linux |
@@ -17,7 +18,7 @@ is the short version of all of it.
 
 | Page | Answers |
 | --- | --- |
-| [what-you-get.md](what-you-get.md) | The commands worth knowing on day one, once `repos`/`watch_users` is set |
+| [what-you-get.md](what-you-get.md) | The commands worth knowing on day one, once the setup guide has run |
 | [commands.md](commands.md) | The complete `:GithubStats <subcommand>` reference |
 | [BINDINGS.md](BINDINGS.md) | Every command, keymap and autocommand in one place |
 | [dashboard.md](dashboard.md) | The interactive dashboard: its keys, its layout, and what it can be configured to show |

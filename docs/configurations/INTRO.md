@@ -8,6 +8,7 @@
     - [Decision Guide](#decision-guide)
   - [Configuration Options](#configuration-options)
     - [Core Options](#core-options)
+      - [`storage`](#storage)
       - [`repos`](#repos)
       - [`watch_users`](#watch_users)
       - [`background.enabled`](#backgroundenabled)
@@ -88,6 +89,29 @@ Both methods support the same configuration options and can be used interchangea
 ## Configuration Options
 
 ### Core Options
+
+#### `storage`
+**Type:** `"remote" | "local" | table`
+**Default:** `"remote"` (until the setup guide has run, the plugin fetches locally)
+**Where:** `setup()` only; it decides where `config.json` itself is read from
+
+Where the history lives. **Remote**: a private data repository of yours, filled once a
+day by a GitHub Actions workflow; every machine clones and pulls it and never fetches
+itself. **Local**: this Neovim fetches into `config_dir`/`data_dir`, as before. The
+table form takes `mode`, `repo` (`"owner/name"`), `dir` (the clone, default
+`stdpath('data') .. '/github_stats.nvim-vault'`) and `pull_interval_minutes` (default
+`60`). Setting `config_dir` or `data_dir` also means local.
+
+##### Example:
+```lua
+storage = "local"                                  -- fetch here, no data repository
+storage = { repo = "you/github-stats-vault" }      -- remote, repository known: no guide
+```
+
+In remote mode `config.json` is the one in the clone (the workflow reads it too), so
+`repos`, `watch_users` and the other options it holds are shared by every machine and
+the workflow; edit it there and run `:GithubStats sync`. Everything about the mode, the
+setup guide and the workflow: [Where the history lives](../FEATURES/REMOTE.md).
 
 #### `repos`
 **Type:** `string[]`
@@ -252,7 +276,9 @@ for your own statusline to read via
 - Linux/macOS: `~/.config/nvim/lua/plugins/github-stats`
 - Windows: `%LOCALAPPDATA%\nvim\lua\plugins\github-stats`
 
-Custom directory for configuration file (`config.json`) storage.
+Custom directory for configuration file (`config.json`) storage. Setting it means
+local mode (see [`storage`](#storage)); in remote mode the clone of the data repository
+is the config directory.
 
 ##### Example:
 ```lua
@@ -268,7 +294,7 @@ config_dir = "~/my-github-stats"
 **Type:** `string | nil`
 **Default:** `config_dir .. '/data'`
 
-Custom directory for traffic data storage. If not specified, data is stored relative to `config_dir`.
+Custom directory for traffic data storage. If not specified, data is stored relative to `config_dir`. Setting it means local mode (see [`storage`](#storage)).
 
 ##### Example:
 ```lua
@@ -434,6 +460,10 @@ ls -la ~/.github_token
 
 ### Default Storage Structure
 
+In remote mode (the default) this tree is the clone of your data repository,
+`stdpath('data')/github_stats.nvim-vault/`, with the workflow in
+`.github/workflows/collect.yml` next to it. In local mode it is `config_dir`:
+
 ```
 ~/.config/nvim/lua/plugins/github-stats/
 ├── config.json                    # Configuration (Option B)
@@ -540,7 +570,15 @@ Results in:
 
 **Scenario:** You use Neovim on multiple systems (work laptop, home desktop, remote server) and want consistent GitHub Stats across all machines.
 
-#### Solution with Option B:
+#### Solution: remote mode (the default)
+
+The data repository is the shared place: one workflow collects for all machines, each
+machine clones and pulls it, nothing is fetched twice and no fetch results land in your
+dotfiles. Put `storage = { repo = "you/github-stats-vault" }` into the spec every machine
+uses, or run `:GithubStats setup` once per machine. See
+[Where the history lives](../FEATURES/REMOTE.md).
+
+#### Solution with Option B (local mode):
 
 1. **Structure:**
    ```

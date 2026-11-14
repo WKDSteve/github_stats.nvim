@@ -5,11 +5,20 @@ the user-facing configuration and the two intervals it juggles, see
 [WORKFLOW.md](WORKFLOW.md#background-fetching-runs-the-whole-session--know-the-two-intervals);
 for the catalog entry, [FEATURES/FETCHING.md](FEATURES/FETCHING.md).
 
+> **Remote mode (the default) does not fetch here.** When the history lives
+> in a data repository ([FEATURES/REMOTE.md](FEATURES/REMOTE.md)), the same
+> cycle and timer only *pull* that repository: the first cycle after
+> `initial_delay_ms`, then every `storage.pull_interval_minutes` (default 60).
+> A pull that brought something drops the read memo and rebuilds stale
+> digests. Everything below describes the fetch of local mode.
+
 ## Entry point
 
 [`lua/github_stats/bindings/autocmds.lua`](../lua/github_stats/bindings/autocmds.lua)
 registers a single `VimEnter` autocmd whose callback calls
-`require("github_stats.background").start()`. This is the only place
+`require("github_stats.background").start()` (in remote mode with a known but
+not yet cloned data repository it clones first, then starts the cycle; with
+none known it may also open the setup guide once). This is the only place
 `background.lua` gets invoked from; nothing else in the plugin calls it.
 
 ## `M.start()`

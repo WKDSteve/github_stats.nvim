@@ -2,8 +2,14 @@
 
 ## Data Structure
 
+Where this tree is depends on the mode ([FEATURES/REMOTE.md](FEATURES/REMOTE.md)):
+in remote mode (the default) it is the clone of the data repository,
+`stdpath('data')/github_stats.nvim-vault/`, which also holds
+`.github/workflows/collect.yml` and is written only by that workflow (except
+`config.json`); in local mode it is `config_dir`:
+
 ```
-~/.config/nvim/lua/plugins/github-stats/     # config_dir
+<clone> or <config_dir>                     # config_dir
 ├── config.json                    # User configuration (optional)
 ├── last_fetch.json                # Interval tracking
 └── data/                          # data_dir (defaults to config_dir/data)
@@ -23,6 +29,22 @@ repeated same-day fetch never double-counts. Growth is bounded by
 [retention](FEATURES/RETENTION.md), which folds aged-out clones/views days
 into `_archive.json` and deletes the raw files behind them, and prunes old
 referrers/paths snapshots outright.
+
+### Where the history comes from: `remote/`
+
+`lua/github_stats/remote/` decides the mode and does the git work, the rest of
+the plugin only sees a `config_dir`:
+
+| Module | Job |
+| --- | --- |
+| `remote/init.lua` | the mode (`storage`, `config_dir`/`data_dir`, the guide's state file `stdpath('data')/github_stats.nvim-remote.json`), clone, fast-forward pull, `config.json` push, workflow dispatch, one sync at a time |
+| `remote/wizard.lua` | the setup guide (`:GithubStats setup`) on `lib.nvim.ui.kit.async` |
+| `remote/create.lua` | a new data repository: files from `templates/vault/`, first commit, `gh repo create --private --push` |
+| `remote/proc.lua` | every `git`/`gh` process: awaitable inside the guide, callback-shaped elsewhere |
+
+`init.lua` resolves the mode before `config.init`, so in remote mode the
+clone is simply the `config_dir`. `fetcher.fetch_all`/`fetch_repo` and the
+background cycle check `remote.active()` first and pull instead of fetching.
 
 ### The digest
 

@@ -1,7 +1,7 @@
 # GithubStats command tree
 
 - **Module:** `bindings/usrcmds/init.lua`, one `composer.verb("GithubStats", ...)` registration
-- **Usercmds:** `:GithubStats fetch|show|summary|referrers|paths|chart|export|diff|compact|digest|debug|dashboard` — full reference in [commands.md](../commands.md) and [BINDINGS.md](../BINDINGS.md)
+- **Usercmds:** `:GithubStats setup|sync|fetch|show|summary|referrers|paths|chart|export|diff|compact|digest|debug|dashboard` — full reference in [commands.md](../commands.md) and [BINDINGS.md](../BINDINGS.md)
 
 A single `:GithubStats <subcommand>` verb (built with
 [`lib.nvim.bindings.usercmd.composer`](https://github.com/WKDSteve/lib.nvim)),
