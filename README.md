@@ -106,4 +106,9 @@ github_stats.nvim is released under the [MIT License](https://opensource.org/lic
 - [pdfport.nvim](https://github.com/WKDSteve/pdfport.nvim): The export of github_stats.nvim can write a PDF through pdfport.nvim when it is installed. ([picture](assets/graphs/pair/github_stats.nvim--pdfport.nvim.png))
 - [ui.nvim](https://github.com/WKDSteve/ui.nvim): github_stats.nvim shows its notes and the menu of its dashboard with ui.nvim (`ui.kit.note`, `ui.contextmenu`). ([picture](assets/graphs/pair/github_stats.nvim--ui.nvim.png))
 - [lib.nvim](https://github.com/WKDSteve/lib.nvim): the shared base of the plugins.
+
+**Used by**
+
+- [docmap-desktop](https://github.com/WKDSteve/docmap-desktop): The traffic view of docmap-desktop reads the traffic digest github_stats.nvim writes. ([picture](assets/graphs/pair/docmap-desktop--github_stats.nvim.png))
+- [docmap.nvim](https://github.com/WKDSteve/docmap.nvim): The `traffic` mode of `:DocBrowse` reads the traffic digest that github_stats.nvim publishes for the repository. ([picture](assets/graphs/pair/docmap.nvim--github_stats.nvim.png))
 <!-- connections:end -->
