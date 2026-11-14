@@ -65,7 +65,9 @@ it again resumes where it stopped.
    - It exists (you set it up on another machine): it is cloned.
    - It does not: it is created **private**, with the workflow, a README and your
      `config.json`. If this machine already has a local history, the guide offers to
-     take it over, so nothing collected so far is lost.
+     take it over, so nothing collected so far is lost. Without one it asks what the
+     workflow should track: all public repositories of your login (`watch_users`), a
+     list you type (`repos`), or nothing yet (you edit `config.json` later).
 4. **The secret `GH_STATS_TOKEN`** the workflow reads the traffic with. The guide
    offers to set it from the token this plugin already uses (handed to `gh secret set`
    on stdin, never on a command line), or shows the command to run yourself.

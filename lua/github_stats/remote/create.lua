@@ -137,7 +137,8 @@ function M.scaffold(dir, opts)
   end
 
   if vim.fn.filereadable(dir .. "/config.json") == 0 then
-    local ok, err = require("lib.nvim.fs.json").write(dir .. "/config.json", require("github_stats.config.DEFAULTS"))
+    local fresh = vim.tbl_extend("force", vim.deepcopy(require("github_stats.config.DEFAULTS")), opts.config or {})
+    local ok, err = require("lib.nvim.fs.json").write(dir .. "/config.json", fresh)
     if not ok then
       return false, err, copied
     end

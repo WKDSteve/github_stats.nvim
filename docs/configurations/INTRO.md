@@ -115,6 +115,7 @@ setup guide and the workflow: [Where the history lives](../FEATURES/REMOTE.md).
 
 #### `repos`
 **Type:** `string[]`
+**Default:** `{}` (nothing is tracked until you name repositories here or users in `watch_users`)
 **Required:** Yes, unless `watch_users` is set
 **Format:** `"owner/repository"`
 **Example:** `["username/repo1", "organization/repo2"]`

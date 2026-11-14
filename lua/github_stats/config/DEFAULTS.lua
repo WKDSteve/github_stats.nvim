@@ -7,20 +7,10 @@
 ---@type GHStats.Config
 local DEFAULT_CONFIG = {
   notify_fetch = true,
-  repos = {
-    "WKDSteve/color_my_ascii.nvim",
-    "WKDSteve/github_stats.nvim",
-    "WKDSteve/gopath.nvim",
-    "WKDSteve/mdlinks",
-    "WKDSteve/mdview.nvim",
-    "WKDSteve/monkeypatch.nvim",
-    "WKDSteve/mygrep.nvim",
-    "WKDSteve/cmdlog.nvim",
-    "WKDSteve/sandbox.nvim",
-    "WKDSteve/replacer",
-    "WKDSteve/reposcope.nvim",
-    "WKDSteve/telescope-selected-index",
-  },
+  -- Empty: what to track is the user's choice (`repos`, `watch_users`; the setup guide asks when it creates a data
+  -- repository). A list here would end up in every new config.json, and a data repository's workflow would collect
+  -- the traffic of these repositories instead of the user's own.
+  repos = {},
   token_source = "env",
   token_env_var = "GITHUB_TOKEN",
   -- Every GitHub API request goes through these two: a request that never

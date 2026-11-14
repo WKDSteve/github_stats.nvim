@@ -607,6 +607,46 @@ describe("remote", function()
       assert.matches("Remote mode is set up", notes[#notes])
     end)
 
+    ---@return table
+    local function written_config()
+      return vim.json.decode(table.concat(vim.fn.readfile(tmp .. "/vault/config.json"), "\n"))
+    end
+
+    it("creates a new data repository that tracks the login's public repositories, not the plugin author's", function()
+      answer("gh repo view", { ok = false, code = 1, stderr = "not found" })
+      picks = { 1, 1, true, "I set it myself" }
+      wizard.open()
+      assert.is_not_nil(call_of("gh repo create me/" .. remote.DEFAULT_REPO_NAME))
+      local cfg = written_config()
+      assert.same({ "me" }, cfg.watch_users)
+      assert.same({}, cfg.repos)
+      assert.equals("remote", remote.read_state().mode)
+    end)
+
+    it("creates one with a typed list, and refuses a name that is not owner/name", function()
+      answer("gh repo view", { ok = false, code = 1, stderr = "not found" })
+      local typed = "me/a, me/b"
+      local default_input = wizard.ui.input
+      wizard.ui.input = function(opts)
+        if opts.prompt:find("comma", 1, true) then
+          return typed, false
+        end
+        return default_input(opts)
+      end
+      picks = { 1, 2, true, "I set it myself" }
+      wizard.open()
+      assert.same({ "me/a", "me/b" }, written_config().repos)
+
+      vim.fn.delete(tmp .. "/vault", "rf")
+      remote.write_state({ mode = false, repo = false, dir = false })
+      calls = {}
+      typed = "me/a, nonsense"
+      picks = { 1, 2 }
+      wizard.open()
+      assert.matches("Not owner/name: nonsense", notes[#notes])
+      assert.is_nil(call_of("gh repo create"))
+    end)
+
     it("explains how to log in when gh cannot", function()
       answer("gh api user", { ok = false, code = 1, stderr = "not logged in" })
       picks = { 1 }

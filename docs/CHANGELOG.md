@@ -35,6 +35,10 @@ documented as part of the features they affect in
   `config.json`); `:GithubStats fetch` starts the workflow. The old behaviour
   is one key away: `storage = "local"` (or `config_dir`/`data_dir` in
   `setup()`). The CLI gained `--token-env=<NAME>` for the workflow.
+- **`repos` defaults to empty** (it was a list of the author's repositories,
+  which a new data repository would have tracked instead of the user's own);
+  the setup guide asks what a new data repository tracks: the login's public
+  repositories (`watch_users`), a typed list, or nothing yet.
 - **Digest for other programs** (`github_stats.digest`,
   [`docs/FEATURES/DIGEST.md`](FEATURES/DIGEST.md)): after a fetch — and whenever
   the synced history is newer than the local digest — the plugin publishes one

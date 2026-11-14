@@ -7,7 +7,8 @@
 ---   1. Where the history lives: remote (recommended), local, or later.
 ---   2. remote: the GitHub CLI (`gh`) is there and logged in.
 ---   3. The data repository: an existing one is cloned; a new one is created private, optionally with the local
----      history this machine already has.
+---      history this machine already has; without one, the guide asks what to track (the login's public
+---      repositories, a typed list, or nothing yet).
 ---   4. The workflow's secret `GH_STATS_TOKEN`: set from the configured token, or the user does it (shown how).
 ---   5. Optionally the first run of the workflow, right now.
 ---
@@ -180,11 +181,51 @@ local function ensure_secret(repo)
   return true
 end
 
+---What a new data repository without a taken-over history tracks: all public repositories of the login
+---(`watch_users`), a typed list (`repos`), or nothing yet.
+---@param login string
+---@return table|nil config values for the fresh config.json; nil when the user left the guide
+local function choose_tracked(login)
+  local choices = {
+    ("All public repositories of %s (watch_users)"):format(login),
+    "A list I type (owner/name, comma-separated)",
+    "None yet: I edit config.json later",
+  }
+  local _, idx = M.ui.select({ title = "Which repositories should the workflow track?", selection = choices })
+  if idx == nil then
+    return nil
+  end
+  if idx == 1 then
+    return { watch_users = { login } }
+  end
+  if idx == 3 then
+    return {}
+  end
+  local typed, cancelled = M.ui.input({ prompt = "Repositories (owner/name, comma-separated)", default = "" })
+  if cancelled or not typed then
+    return nil
+  end
+  local repos, bad = {}, {}
+  for name in typed:gmatch("[^,%s]+") do
+    if remote.valid_repo(name) then
+      repos[#repos + 1] = name
+    else
+      bad[#bad + 1] = name
+    end
+  end
+  if #bad > 0 then
+    note({ "Not owner/name: " .. table.concat(bad, ", "), "Run :GithubStats setup again." })
+    return nil
+  end
+  return { repos = repos }
+end
+
 ---Step 3: clone the existing data repository or create a new one. Returns the storage now in use.
 ---@param s GHStats.Storage
 ---@param repo string
+---@param login string
 ---@return boolean ok
-local function ensure_repository(s, repo)
+local function ensure_repository(s, repo, login)
   if vim.fn.isdirectory(s.dir .. "/.git") == 1 then
     return true
   end
@@ -217,13 +258,26 @@ local function ensure_repository(s, repo)
     end
     seed_dir = answer == "Take it over" and seed or nil
   end
+  -- A taken-over history brings its own config.json; a fresh one needs to know what to track.
+  local tracked = nil
+  if not seed_dir then
+    tracked = choose_tracked(login)
+    if tracked == nil then
+      return false
+    end
+  end
   local yes = M.ui.confirm({
     question = ("Create the private repository %s (clone in %s)?"):format(repo, s.dir),
   })
   if not yes then
     return false
   end
-  local ok, err, copied = require("github_stats.remote.create").create({ repo = repo, dir = s.dir, seed_dir = seed_dir })
+  local ok, err, copied = require("github_stats.remote.create").create({
+    repo = repo,
+    dir = s.dir,
+    seed_dir = seed_dir,
+    config = tracked,
+  })
   if not ok then
     note({ "Creating " .. repo .. " failed:", "", "  " .. tostring(err) })
     return false
@@ -283,7 +337,7 @@ local function flow(opts)
     repo = typed
   end
 
-  if not ensure_repository(s, repo) then
+  if not ensure_repository(s, repo, login) then
     return
   end
   remote.write_state({ mode = "remote", repo = repo, dir = s.dir, deferred = false })

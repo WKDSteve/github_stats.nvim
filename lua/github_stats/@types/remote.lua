@@ -48,6 +48,7 @@
 ---@field seed_dir? string A local history to take over (its config.json, data/ and the rest)
 ---@field plugin_ref? string Branch of github_stats.nvim the workflow uses (default "main")
 ---@field lib_ref? string Branch of lib.nvim (default "main")
+---@field config? table Values over the defaults when a fresh config.json is written (what to track); a config.json taken over from `seed_dir` is left as it is
 
 ---@class GHStats.Remote.CreateOpts : GHStats.Remote.ScaffoldOpts
 ---@field dir string Where the clone lives on this machine (must not exist yet, or be empty)
