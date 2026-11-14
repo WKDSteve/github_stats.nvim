@@ -11,6 +11,8 @@ configuration.
 ## Table of Contents
 
 - [Command Overview](#command-overview)
+- [GithubStats setup](#githubstats-setup)
+- [GithubStats sync](#githubstats-sync)
 - [GithubStats fetch](#githubstats-fetch)
 - [GithubStats show](#githubstats-show)
 - [GithubStats summary](#githubstats-summary)
@@ -31,7 +33,9 @@ configuration.
 
 | Command | Purpose | Autocompletion |
 |---------|---------|----------------|
-| `:GithubStats fetch` | Fetch traffic data manually | `force` |
+| `:GithubStats setup` | Guide: where the history lives (remote data repository or local) | None |
+| `:GithubStats sync` | Remote mode: push a changed `config.json`, pull the data repository | None |
+| `:GithubStats fetch` | Fetch traffic data manually (remote mode: start the workflow) | `force` |
 | `:GithubStats show` | Detailed statistics for repo/metric | Repos, metrics |
 | `:GithubStats summary` | Aggregate across all repositories | Metrics |
 | `:GithubStats referrers` | Top referrer sources | Repos |
@@ -46,7 +50,28 @@ configuration.
 
 ---
 
+## GithubStats setup
+
+Opens the setup guide: where the history lives (remote, local, later), and in
+remote mode the GitHub CLI check, the data repository (cloned or created
+private, optionally with this machine's history), the workflow's secret and a
+first run. Each step checks whether it is done, so running it again resumes.
+Opens by itself once on the first start. See
+[Where the history lives](FEATURES/REMOTE.md).
+
+## GithubStats sync
+
+Remote mode only: commits and pushes a changed `config.json` (rebased onto the
+workflow's commits), then pulls the data repository fast-forward. The editor
+does the same quietly on start and every `storage.pull_interval_minutes`.
+
+---
+
 ## GithubStats fetch
+
+In remote mode this starts the data repository's workflow (`gh workflow run`)
+and pulls its result about two and a half minutes later; this machine itself
+never fetches then. Everything below is the local mode.
 
 ### Usage:
 ```vim

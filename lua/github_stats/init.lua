@@ -25,14 +25,47 @@
 ---   :checkhealth github_stats
 local M = {}
 
+---The options of the last `setup()`, kept for `reload_storage()`.
+---@type GHStats.SetupOptions
+local last_opts = {}
+
+---Resolve where the history lives (`github_stats.remote`) and load the configuration from there.
+---@param opts GHStats.SetupOptions
+---@return boolean ok
+---@return string|nil err
+local function init_storage(opts)
+  local config = require("github_stats.config")
+  local remote = require("github_stats.remote")
+
+  local storage, storage_err = remote.resolve(opts)
+  if storage_err then
+    config.notify("[github-stats] " .. storage_err, "warn")
+  end
+  remote.set_current(storage)
+
+  -- `storage` is not a config option: it decides the paths and is taken out like them.
+  local init_opts = {}
+  for key, value in pairs(opts) do
+    if key ~= "storage" then
+      init_opts[key] = value
+    end
+  end
+  if remote.status(storage) == "ready" then
+    init_opts.config_dir = storage.dir
+    init_opts.data_dir = nil
+  end
+  return config.init(init_opts)
+end
+
 ---Setup the plugin
 ---@param opts? GHStats.SetupOptions Setup options (see |github_stats-configuration|)
 function M.setup(opts)
   opts = opts or {}
+  last_opts = opts
 
   -- Initialize configuration
   local config = require("github_stats.config")
-  local ok, err = config.init(opts)
+  local ok, err = init_storage(opts)
   if not ok then
     config.notify(string.format("[github-stats] Configuration error: %s", err), "error")
     return
@@ -45,6 +78,24 @@ function M.setup(opts)
   -- Setup auto-fetch on VimEnter (and optional dashboard auto-open)
   local autocmds = require("github_stats.bindings.autocmds")
   autocmds.setup()
+end
+
+---Decide the storage again (after the setup guide or a clone changed it) and restart the background cycle on it.
+---@return boolean ok
+function M.reload_storage()
+  local config = require("github_stats.config")
+  local background = require("github_stats.background")
+  background.stop()
+  local ok, err = init_storage(last_opts)
+  if not ok then
+    config.notify(string.format("[github-stats] Configuration error: %s", err), "error")
+    return false
+  end
+  pcall(function()
+    require("github_stats.storage").invalidate()
+  end)
+  background.start()
+  return true
 end
 
 -- Expose submodules for advanced usage

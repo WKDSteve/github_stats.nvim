@@ -305,6 +305,22 @@ function M.setup()
       },
 
       {
+        path = { "setup" },
+        desc = "Guide: where the history lives (data repository filled by GitHub Actions, or local) and what it needs",
+        run = function()
+          require("github_stats.remote.wizard").open()
+        end,
+      },
+
+      {
+        path = { "sync" },
+        desc = "Remote mode: push a changed config.json, pull the data repository now",
+        run = function()
+          require("github_stats.remote").sync()
+        end,
+      },
+
+      {
         path = { "debug" },
         desc = "Debug configuration and test API connection",
         run = function()

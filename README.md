@@ -29,6 +29,13 @@ throws them away. This plugin collects them in the background before that
 happens, analyses the history it builds, and exports it — all from inside
 Neovim.
 
+By default the collecting is not even done by your editor: on the first start a
+short guide sets up a **private data repository** whose GitHub Actions workflow
+collects every day, and every machine you use only pulls it. Same history
+everywhere, nothing fetched twice, no day lost when no editor runs. Prefer the
+plugin to fetch by itself? `storage = "local"`. See
+[Where the history lives](docs/FEATURES/REMOTE.md).
+
 ---
 
 ## Around it
@@ -63,6 +70,7 @@ each page answers.
 - [Requirements](docs/installation.md#requirements) — Neovim version, the `lib.nvim` dependency, `curl`, and the GitHub token.
 - [Installation](docs/installation.md) — loading strategies and every plugin manager.
 - [Quickstart](docs/quickstart.md) — the first thing to run after installing.
+- [Where the history lives](docs/FEATURES/REMOTE.md) — remote (a data repository GitHub Actions fills, the default) or local, the setup guide, and the one `storage` key.
 
 ### Configuration
 

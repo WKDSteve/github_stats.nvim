@@ -1,5 +1,19 @@
 # Quickstart
 
+On the first start after installing, a short guide opens by itself and asks where
+the history should live (any time later: `:GithubStats setup`):
+
+- **Remote** (recommended): a private repository of yours holds the history and a
+  GitHub Actions workflow in it collects every day; this Neovim only pulls. The guide
+  creates it (or clones it, when another machine already did), sets the token as its
+  secret and starts the first run. Needs the [GitHub CLI](https://cli.github.com),
+  logged in once. Details: [Where the history lives](FEATURES/REMOTE.md).
+- **Local**: this Neovim fetches by itself, as described below. The same in the spec,
+  without the guide: `opts = { storage = "local" }`.
+
+In remote mode `:GithubStats fetch` starts the workflow and `:GithubStats sync`
+pulls; the rest of this page is the local mode.
+
 First, the token — an environment variable is the recommended shape:
 
 ```bash

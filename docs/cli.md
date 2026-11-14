@@ -24,6 +24,10 @@ as in the editor: `token_source`, by default `$GITHUB_TOKEN`) and `lib.nvim`, wh
 
 ## Options
 
+The workflow of a data repository ([remote mode](FEATURES/REMOTE.md)) runs
+`collect --force --token-env=GH_STATS_TOKEN --config-dir=<the repository>`; in remote
+mode the daily task below is not needed, the workflow is that task.
+
 | Option | Meaning |
 | --- | --- |
 | `--repos=<owner/name,...>` | These repositories instead of the configured ones; `watch_users` is not asked. |
@@ -31,6 +35,7 @@ as in the editor: `token_source`, by default `$GITHUB_TOKEN`) and `lib.nvim`, wh
 | `--data-dir=<dir>` | The history (default: `<config-dir>/data`). |
 | `--digest-dir=<dir>` | `collect`: where the digests go (default: `stdpath("data")/github_stats.nvim`). |
 | `--force` | `collect`: fetch even when `fetch_interval_hours` has not elapsed. |
+| `--token-env=<NAME>` | Read the token from this environment variable, whatever `config.json` says (`token_source`, `token_env_var`). |
 | `--timeout=<seconds>` | `collect`: give up after this long (default 600). |
 | `--format=text\|json` | Default `text`. |
 | `--quiet` | `collect`: no warnings on stderr. |

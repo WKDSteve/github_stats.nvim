@@ -1,0 +1,3 @@
+# Local to one machine, never part of the shared history.
+*.tmp
+*.lock

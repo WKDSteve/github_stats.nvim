@@ -17,10 +17,40 @@ local M = {}
 ---@return nil
 function M.setup()
   autocmd.create("VimEnter", function()
-    -- Start the silent background fetch/discovery cycle (no-op if
-    -- background.enabled == false)
+    -- Start the silent background cycle (no-op if background.enabled ==
+    -- false): fetching in local mode, pulling the data repository in remote
+    -- mode. Remote mode with a known repository that is not cloned yet (a new
+    -- machine with `storage.repo` in its spec) clones it first.
     local background = require("github_stats.background")
-    background.start()
+    local remote = require("github_stats.remote")
+    local storage = remote.current()
+    local status = storage and remote.status(storage)
+    if storage and status == "clone" then
+      remote.clone(storage, function(ok, err)
+        local config = require("github_stats.config")
+        if ok then
+          config.notify(("[github-stats] Cloned the data repository %s"):format(storage.repo), "info")
+          require("github_stats").reload_storage()
+        else
+          config.notify(
+            ("[github-stats] Cloning %s failed: %s (fetching locally meanwhile)"):format(storage.repo, err or "?"),
+            "warn"
+          )
+          background.start()
+        end
+      end)
+    else
+      background.start()
+    end
+
+    -- First start in remote mode without a data repository: the setup guide,
+    -- once (its "later" is remembered). Until then the plugin fetches locally.
+    local wizard = require("github_stats.remote.wizard")
+    if storage and wizard.should_auto_open(storage) then
+      vim.defer_fn(function()
+        wizard.open({ auto = true })
+      end, 1500)
+    end
 
     -- Auto-open dashboard if enabled (independent of fetch completion,
     -- same as before: it shows whatever is already cached and gets

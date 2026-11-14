@@ -23,6 +23,14 @@ local function run_cycle()
   local config = require("github_stats.config")
   local fetcher = require("github_stats.fetcher")
 
+  -- Remote mode: the workflow of the data repository fetches; this machine only pulls (and refreshes its digests
+  -- when something arrived). Fetching here as well would fetch twice and leave changes in a clone nobody commits.
+  local remote = require("github_stats.remote")
+  if remote.active() then
+    remote.sync(nil, true)
+    return
+  end
+
   -- The history is synced between machines, the digest is not: when the other
   -- machine fetched, this one skips its own fetch for the interval and would
   -- never rebuild its digest. So every cycle first checks whether the digest
@@ -71,6 +79,11 @@ end
 ---@param cfg GHStats.SetupOptions?
 ---@return integer
 local function poll_interval_ms(cfg)
+  local remote = require("github_stats.remote")
+  if remote.active() then
+    local s = remote.current() --[[@as GHStats.Storage]]
+    return math.floor(s.pull_interval_minutes * 60 * 1000)
+  end
   local interval_hours = (cfg and cfg.fetch_interval_hours) or 24
   local minutes = math.min(60, interval_hours * 60)
   return math.floor(minutes * 60 * 1000)

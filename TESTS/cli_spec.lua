@@ -151,6 +151,19 @@ describe("cli", function()
       assert.matches("text or json", e4)
       local _, e5 = cli.parse({ "report", "extra" })
       assert.matches("unexpected argument extra", e5)
+      local _, e6 = cli.parse({ "collect", "--token-env=NOT-A-NAME" })
+      assert.matches("not an environment variable name", e6)
+    end)
+  end)
+
+  describe("--token-env", function()
+    it("reads the token from that variable, whatever config.json says (the workflow's GH_STATS_TOKEN)", function()
+      vim.env.GITHUB_TOKEN = nil
+      vim.env.GHS_SPEC_TOKEN = "from-the-secret"
+      local code = run(args({ "collect", "--force", "--repos=owner/alpha", "--token-env=GHS_SPEC_TOKEN" }))
+      vim.env.GHS_SPEC_TOKEN = nil
+      assert.equals(0, code, stderr())
+      assert.equals(1, vim.fn.isdirectory(tmp .. "/cfg/data/owner_alpha"))
     end)
   end)
 

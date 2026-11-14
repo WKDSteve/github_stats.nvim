@@ -1,0 +1,83 @@
+# Written by github_stats.nvim (:GithubStats setup). Once a day it collects the GitHub traffic of the
+# repositories in config.json and commits the result here; every Neovim with this repository as its
+# data store only pulls. GitHub keeps traffic for 14 days, so this also covers the days no editor runs.
+#
+# Needs the secret GH_STATS_TOKEN: a token that can read the traffic of the tracked repositories
+# (classic: `repo`; fine-grained: "Administration: read" on them). Set it with
+#   gh secret set GH_STATS_TOKEN -R <this repository>
+# or let `:GithubStats setup` do it.
+name: collect
+
+on:
+  schedule:
+    - cron: "23 4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: collect
+  cancel-in-progress: false
+
+env:
+  PLUGIN_URL: "{{PLUGIN_URL}}"
+  PLUGIN_REF: "{{PLUGIN_REF}}"
+  LIB_URL: "{{LIB_URL}}"
+  LIB_REF: "{{LIB_REF}}"
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: rhysd/action-setup-vim@v1
+        with:
+          neovim: true
+          version: stable
+
+      - name: Get github_stats.nvim and lib.nvim
+        run: |
+          git clone --quiet --depth 1 --branch "$PLUGIN_REF" "$PLUGIN_URL" "$RUNNER_TEMP/github_stats.nvim"
+          git clone --quiet --depth 1 --branch "$LIB_REF" "$LIB_URL" "$RUNNER_TEMP/lib.nvim"
+
+      - name: Collect
+        id: collect
+        env:
+          GH_STATS_TOKEN: ${{ secrets.GH_STATS_TOKEN }}
+          LIB_NVIM_DIR: ${{ runner.temp }}/lib.nvim
+        run: |
+          set +e
+          nvim --headless -u NONE -l "$RUNNER_TEMP/github_stats.nvim/scripts/github_stats.lua" collect \
+            --force --token-env=GH_STATS_TOKEN \
+            --config-dir="$GITHUB_WORKSPACE" --digest-dir="$RUNNER_TEMP/digest"
+          echo "code=$?" >> "$GITHUB_OUTPUT"
+
+      # Whatever was collected is kept, also when one repository failed.
+      - name: Commit
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "nothing new"
+            exit 0
+          fi
+          git commit --quiet -m "collect: $(date -u +%Y-%m-%d)"
+          for attempt in 1 2 3; do
+            git push --quiet && exit 0
+            git pull --rebase --quiet
+          done
+          exit 1
+
+      - name: Result
+        if: always()
+        run: |
+          code="${{ steps.collect.outputs.code }}"
+          if [ "$code" != "0" ]; then
+            echo "::error::collect ended with exit code ${code:-unknown} (1 fetch error, 2 configuration or token, 3 environment)"
+            exit 1
+          fi

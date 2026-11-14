@@ -17,6 +17,11 @@ local KEEP = "Not now"
 ---@param args table Command arguments from nvim_create_user_command
 ---@see github_stats.fetcher.manual_fetch
 function M.execute(args)
+  local remote = require("github_stats.remote")
+  if remote.active() then
+    M.dispatch_remote()
+    return
+  end
   local force = args.args == "force"
   local due, info = true, nil
   if not force then
@@ -34,6 +39,29 @@ function M.execute(args)
     if index == 2 then
       fetcher.manual_fetch(true)
     end
+  end)
+end
+
+---How long after starting the workflow the editor pulls its result (a run takes about a minute).
+M.PULL_AFTER_MS = 150000
+
+---Remote mode: start the data repository's workflow, then pull once it has had time to run.
+---@return nil
+function M.dispatch_remote()
+  local config = require("github_stats.config")
+  local remote = require("github_stats.remote")
+  remote.dispatch(function(ok, err)
+    if not ok then
+      config.notify(("[github-stats] Starting the workflow failed: %s"):format(err or "?"), "error")
+      return
+    end
+    config.notify(
+      ("[github-stats] Workflow started; pulling its result in %d s (:GithubStats sync any time)"):format(M.PULL_AFTER_MS / 1000),
+      "info"
+    )
+    vim.defer_fn(function()
+      remote.sync()
+    end, M.PULL_AFTER_MS)
   end)
 end
 

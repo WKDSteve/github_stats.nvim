@@ -166,6 +166,22 @@ function M.fetch_all(force, callback, opts)
   local background = opts.background == true
   local on_settled = opts.on_settled
 
+  -- Remote mode: the data repository's workflow fetches, this machine never does (it would fetch twice and leave
+  -- files in a clone nobody commits). Every way into a fetch -- the background cycle, the dashboard's refresh keys
+  -- -- pulls the repository instead. `:GithubStats fetch` starts the workflow itself (usrcmds/fetch.lua).
+  if require("github_stats.remote").active() then
+    require("github_stats.remote").sync(function()
+      local summary = empty_summary()
+      if callback then
+        callback(summary)
+      end
+      if on_settled then
+        on_settled({ summary = summary })
+      end
+    end, background)
+    return
+  end
+
   ---@param summary GHStats.FetchSummary
   local function settle_empty(summary)
     if on_settled then
@@ -392,6 +408,13 @@ end
 ---@param repo string Repository identifier
 ---@param callback fun(success: string[], errors: table<string, string>)
 function M.fetch_repo(repo, callback)
+  -- Remote mode: pull instead (see fetch_all).
+  if require("github_stats.remote").active() then
+    require("github_stats.remote").sync(function()
+      callback({}, {})
+    end)
+    return
+  end
   local metrics = { "clones", "views", "referrers", "paths" }
   local completed = 0
   local success = {}

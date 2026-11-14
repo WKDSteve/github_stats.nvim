@@ -36,6 +36,8 @@ options:
                              (with any of the three folder options, root.json -- the pointer other programs
                              follow to the editor's digests -- is left alone)
   --force                    collect: fetch even when fetch_interval_hours has not elapsed
+  --token-env=<NAME>         read the GitHub token from this environment variable, whatever config.json says
+                             (the workflow of a data repository: --token-env=GH_STATS_TOKEN)
   --timeout=<seconds>        collect: give up after this long (default 600), exit 3
   --format=text|json         default text
   --quiet                    collect: no warnings on stderr (the result and the exit code stay)
@@ -48,6 +50,7 @@ exit: 0 done, 1 a fetch or digest error, 2 usage/configuration, 3 environment (c
 ---@field config_dir? string
 ---@field data_dir? string
 ---@field digest_dir? string
+---@field token_env? string
 ---@field force boolean
 ---@field timeout_s integer
 ---@field format "text"|"json"
@@ -63,6 +66,7 @@ local VALUES = {
   ["--config-dir"] = "config_dir",
   ["--data-dir"] = "data_dir",
   ["--digest-dir"] = "digest_dir",
+  ["--token-env"] = "token_env",
   ["--timeout"] = "timeout",
   ["--format"] = "format",
 }
@@ -110,6 +114,11 @@ function M.parse(argv)
           return nil, "--format is text or json"
         end
         opts.format = value
+      elseif name == "token_env" then
+        if not value:match("^[%a_][%w_]*$") then
+          return nil, ("--token-env: '%s' is not an environment variable name"):format(value)
+        end
+        opts.token_env = value
       else
         opts[name] = value
       end
@@ -133,6 +142,10 @@ local function init_config(opts)
   if opts.repos then
     setup.repos = opts.repos
     setup.watch_users = {}
+  end
+  if opts.token_env then
+    setup.token_source = "env"
+    setup.token_env_var = opts.token_env
   end
   return require("github_stats.config").init(setup)
 end

@@ -117,6 +117,24 @@ With packer.nvim:~
 ==============================================================================
 CONFIGURATION                                    *github_stats-configuration*
 
+Where the history lives~                         *github_stats-remote-mode*
+                                                 *github_stats-storage-option*
+By default (remote mode) a private data repository of yours holds the
+history, and a GitHub Actions workflow in it collects once a day; every
+machine only clones and pulls it. On the first start a guide sets it up
+(|:GithubStats-setup|); until then the plugin fetches locally. One key in
+`setup()` decides instead:
+>lua
+    storage = "local",                              -- fetch here, as before
+    storage = { repo = "you/github-stats-vault" },  -- remote, no guide
+<
+`storage` takes "remote"/"local" or a table: `mode`, `repo` (owner/name),
+`dir` (the clone, default stdpath("data")/github_stats.nvim-vault),
+`pull_interval_minutes` (default 60). `config_dir` or `data_dir` in
+`setup()` also mean local. In remote mode this machine never fetches: the
+background cycle and the dashboard's refresh keys pull, |:GithubStats-fetch|
+starts the workflow. Details: docs/FEATURES/REMOTE.md.
+
 Two configuration methods are supported:
 
 Option A: Direct Setup (Recommended)~
@@ -311,9 +329,24 @@ live config). Bang attaches to the VERB, not the subcommand: :GithubStats!
 dashboard (not :GithubStats dashboard!). See |github_stats-dashboard| for
 the dashboard subcommand.
                                                              *:GithubStats*
+                                                      *:GithubStats-setup*
+:GithubStats setup
+    The setup guide: remote (data repository filled by GitHub Actions) or
+    local, then the GitHub CLI check, the data repository (cloned, or
+    created private with this machine's history), the workflow's secret
+    GH_STATS_TOKEN and a first run. Resumes where it stopped. Opens by
+    itself once on the first start. See |github_stats-remote-mode|.
+
+                                                       *:GithubStats-sync*
+:GithubStats sync
+    Remote mode: commits and pushes a changed config.json, then pulls the
+    data repository (fast-forward only).
+
                                                       *:GithubStats-fetch*
 :GithubStats fetch [force]
-    Fetches statistics for all configured repositories.
+    Fetches statistics for all configured repositories. In remote mode it
+    starts the data repository's workflow instead and pulls the result
+    about two and a half minutes later.
 
     Optional: `force` - Ignores interval and forces immediate fetch
 

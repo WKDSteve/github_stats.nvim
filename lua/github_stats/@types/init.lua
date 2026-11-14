@@ -16,6 +16,7 @@
 ---@field prune_days integer referrers/paths: age (days) after which a snapshot is deleted outright (the newest snapshot is always kept)
 
 ---@class GHStats.SetupOptions
+---@field storage? "remote"|"local"|GHStats.StorageOptions Where the history lives: a data repository GitHub Actions fills (default, see `github_stats.remote`) or this machine's own folder ("local", the plugin's fetching as before)
 ---@field notify_fetch? boolean Notify at startup whether a fetch was performed or not
 ---@field repos? string[] List of individually tracked repositories ("owner/repo")
 ---@field watch_users? string[] GitHub usernames whose public repositories are auto-discovered and tracked in addition to `repos`

@@ -448,6 +448,22 @@ function M.check()
 
   health.start("GitHub Stats Storage")
 
+  -- Where the history lives (github_stats.remote)
+  local remote = require("github_stats.remote")
+  local current = remote.current()
+  if current then
+    local status = remote.status(current)
+    if status == "ready" then
+      health.ok(("remote mode: data repository %s, clone in %s"):format(current.repo or "?", current.dir))
+    elseif status == "local" then
+      health.ok("local mode: this Neovim fetches into its own folder")
+    elseif status == "clone" then
+      health.warn(("remote mode: %s is not cloned yet (it is cloned on the next start)"):format(current.repo))
+    else
+      health.warn("remote mode is not set up yet: fetching locally meanwhile", { "Run :GithubStats setup" })
+    end
+  end
+
   -- Check storage
   local storage_ok, storage_msg = check_storage()
   if storage_ok then

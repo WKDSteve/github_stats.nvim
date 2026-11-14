@@ -25,6 +25,16 @@ documented as part of the features they affect in
 [`docs/FEATURES/`](FEATURES/README.md), not repeated here.)
 
 ### Added
+- **Remote mode, the new default** (`github_stats.remote`,
+  [`docs/FEATURES/REMOTE.md`](FEATURES/REMOTE.md)): the history lives in a
+  private data repository whose GitHub Actions workflow collects once a day;
+  every machine only clones and pulls it. A setup guide (`:GithubStats setup`,
+  opens by itself once on the first start) creates or clones the repository,
+  takes an existing local history over, sets the workflow's secret and starts
+  the first run. `:GithubStats sync` pulls (and pushes a changed
+  `config.json`); `:GithubStats fetch` starts the workflow. The old behaviour
+  is one key away: `storage = "local"` (or `config_dir`/`data_dir` in
+  `setup()`). The CLI gained `--token-env=<NAME>` for the workflow.
 - **Digest for other programs** (`github_stats.digest`,
   [`docs/FEATURES/DIGEST.md`](FEATURES/DIGEST.md)): after a fetch — and whenever
   the synced history is newer than the local digest — the plugin publishes one
