@@ -475,6 +475,18 @@ function M.check()
     local status = remote.status(current)
     if status == "ready" then
       health.ok(("remote mode: data repository %s, clone in %s"):format(current.repo or "?", current.dir))
+      local outdated, ref = remote.workflow_outdated(current)
+      if outdated then
+        -- The workflow still collects; only the pinned code is older than this plugin's (UI-57: no warn).
+        health.info(
+          ("its workflow runs github_stats.nvim at %s, this plugin pins %s (:GithubStats setup updates it)"):format(
+            tostring(ref),
+            remote.COLLECT_REF
+          )
+        )
+      elseif ref then
+        health.ok(("its workflow runs github_stats.nvim and lib.nvim at %s"):format(ref))
+      end
     elseif status == "local" then
       health.ok("local mode: this Neovim fetches into its own folder")
     -- Neither state needs the user to act (UI-57): the clone happens by itself, and until the guide has run the

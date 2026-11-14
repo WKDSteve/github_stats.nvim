@@ -250,6 +250,10 @@ describe("health", function()
         status = function()
           return "ready"
         end,
+        COLLECT_REF = "collect-2026.11.14",
+        workflow_outdated = function()
+          return true, "main"
+        end,
       }
       package.loaded["github_stats.health"] = nil
       health_mod = require("github_stats.health")
@@ -272,6 +276,8 @@ describe("health", function()
       assert.is_true(reported("info", "Skipped in remote mode"))
       assert.is_true(reported("ok", "pulls the data repository every 60 min"))
       assert.is_true(reported("ok", "remote mode: data repository me/data"))
+      -- an older pin still collects: info, not warn
+      assert.is_true(reported("info", "its workflow runs github_stats.nvim at main"))
     end)
   end)
 

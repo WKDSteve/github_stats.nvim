@@ -6,6 +6,9 @@
 # (classic: `repo`; fine-grained: "Administration: read" on them). Set it with
 #   gh secret set GH_STATS_TOKEN -R <this repository>
 # or let `:GithubStats setup` do it.
+#
+# PLUGIN_REF/LIB_REF pin the code that runs with that secret: tags cut only for this workflow, not
+# releases. `:GithubStats setup` offers to move an older pin to the one your plugin knows.
 name: collect
 
 on:
@@ -33,7 +36,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - uses: rhysd/action-setup-vim@v1
+      - uses: rhysd/action-setup-vim@v1.6.1
         with:
           neovim: true
           version: stable

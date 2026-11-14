@@ -532,6 +532,13 @@ The machine cannot read the private data repository. With `gh` installed,
 `gh auth login`; otherwise make sure plain `git clone https://github.com/<owner>/<repo>.git`
 works with your credential helper. Until then the plugin fetches locally.
 
+### "Updating the workflow failed" in `:GithubStats setup`
+
+Moving the workflow to a newer pin pushes `.github/workflows/collect.yml`, and GitHub
+accepts a workflow file only from a token with the `workflow` scope:
+`gh auth refresh -s workflow` (or a credential helper token with that scope), then run
+`:GithubStats setup` again. Until then the workflow keeps running its old pin.
+
 ### No new data although the workflow ran
 
 The editor pulls on start and every `storage.pull_interval_minutes` (default

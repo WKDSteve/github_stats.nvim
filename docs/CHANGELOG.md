@@ -35,6 +35,10 @@ documented as part of the features they affect in
   `config.json`); `:GithubStats fetch` starts the workflow. The old behaviour
   is one key away: `storage = "local"` (or `config_dir`/`data_dir` in
   `setup()`). The CLI gained `--token-env=<NAME>` for the workflow.
+- **The data repository's workflow runs pinned code**: github_stats.nvim and
+  lib.nvim at a `collect-<date>` tag (`remote.COLLECT_REF`) instead of `main`,
+  and `rhysd/action-setup-vim` at a fixed version. `:GithubStats setup` offers
+  to move an older pin; `:checkhealth` names it.
 - **`repos` defaults to empty** (it was a list of the author's repositories,
   which a new data repository would have tracked instead of the user's own);
   the setup guide asks what a new data repository tracks: the login's public

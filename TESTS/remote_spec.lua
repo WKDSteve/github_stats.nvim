@@ -399,6 +399,38 @@ describe("remote", function()
       return assert(result, "sync never answered")
     end
 
+    it("moves an older workflow pin to COLLECT_REF: commit, rebase, push, for real", function()
+      -- The plugin's own git calls inherit the process environment: the same empty config, plus an identity in the clone.
+      local saved = { vim.env.GIT_CONFIG_GLOBAL, vim.env.GIT_CONFIG_NOSYSTEM }
+      vim.env.GIT_CONFIG_GLOBAL, vim.env.GIT_CONFIG_NOSYSTEM = env.GIT_CONFIG_GLOBAL, "1"
+      git({ "config", "user.name", "spec" }, tmp .. "/vault")
+      git({ "config", "user.email", "spec@example.invalid" }, tmp .. "/vault")
+      local s = remote.current() --[[@as GHStats.Storage]]
+      vim.fn.mkdir(tmp .. "/vault/.github/workflows", "p")
+      vim.fn.writefile({ "env:", '  PLUGIN_REF: "main"' }, remote.workflow_path(s))
+      git({ "add", "." }, tmp .. "/vault")
+      git({ "commit", "--quiet", "-m", "old workflow" }, tmp .. "/vault")
+      git({ "push", "--quiet", "origin", "HEAD:main" }, tmp .. "/vault")
+      assert.is_true((remote.workflow_outdated(s)))
+
+      local result
+      remote.update_workflow(s, function(ok, err, pushed)
+        result = { ok = ok, err = err, pushed = pushed }
+      end)
+      vim.wait(30000, function()
+        return result ~= nil
+      end, 20)
+      vim.env.GIT_CONFIG_GLOBAL, vim.env.GIT_CONFIG_NOSYSTEM = saved[1], saved[2]
+
+      assert.is_true(result.ok, result.err)
+      assert.is_true(result.pushed)
+      assert.equals(remote.COLLECT_REF, remote.workflow_ref(s))
+      assert.is_false((remote.workflow_outdated(s)))
+      git({ "pull", "--quiet", "origin", "main" }, tmp .. "/writer")
+      local pushed = table.concat(vim.fn.readfile(tmp .. "/writer/.github/workflows/collect.yml"), "|")
+      assert.truthy(pushed:find('PLUGIN_REF: "' .. remote.COLLECT_REF .. '"', 1, true))
+    end)
+
     it("pulls what the workflow pushed, and says when nothing came", function()
       assert.equals("ready", remote.status(remote.current() --[[@as GHStats.Storage]]))
       vim.fn.mkdir(tmp .. "/writer/data", "p")
@@ -480,6 +512,11 @@ describe("remote", function()
       assert.matches("github_stats%.nvim%.git", workflow)
       assert.matches("%-%-token%-env=GH_STATS_TOKEN", workflow)
       assert.matches("secrets%.GH_STATS_TOKEN", workflow)
+      -- pinned, not main: the code that runs with the secret is a tag (and so is the action)
+      assert.truthy(workflow:find('PLUGIN_REF: "' .. remote.COLLECT_REF .. '"', 1, true))
+      assert.truthy(workflow:find('LIB_REF: "' .. remote.COLLECT_REF .. '"', 1, true))
+      assert.truthy(workflow:find("rhysd/action-setup-vim@v1.6.1", 1, true))
+      assert.equals(remote.COLLECT_REF, remote.workflow_ref({ dir = dir }))
     end)
 
     it("writes a default config.json and the README with the repository's name when there is no history", function()
@@ -645,6 +682,29 @@ describe("remote", function()
       wizard.open()
       assert.matches("Not owner/name: nonsense", notes[#notes])
       assert.is_nil(call_of("gh repo create"))
+    end)
+
+    it("offers to move an older workflow pin, and leaves it when declined", function()
+      vim.fn.mkdir(tmp .. "/vault/.git", "p")
+      vim.fn.mkdir(tmp .. "/vault/.github/workflows", "p")
+      vim.fn.writefile({ '  PLUGIN_REF: "main"' }, tmp .. "/vault/.github/workflows/collect.yml")
+      remote.set_current(remote.resolve({ storage = { repo = "me/data" } }, {}))
+      answer("git -C " .. tmp .. "/vault status --porcelain -- .github", { stdout = " M .github/workflows/collect.yml" })
+      answer("gh secret list", { stdout = '[{"name":"GH_STATS_TOKEN"}]' })
+      picks = { true, false }
+      wizard.open()
+      assert.matches("runs github_stats.nvim at main", questions[1])
+      assert.equals(remote.COLLECT_REF, remote.workflow_ref(remote.current() --[[@as GHStats.Storage]]))
+      assert.is_not_nil(call_of("git -C " .. tmp .. "/vault commit --quiet -m workflow:"))
+      assert.is_not_nil(call_of("git -C " .. tmp .. "/vault push"))
+
+      -- declined: nothing is written
+      vim.fn.writefile({ '  PLUGIN_REF: "main"' }, tmp .. "/vault/.github/workflows/collect.yml")
+      calls, questions = {}, {}
+      picks = { false, false }
+      wizard.open()
+      assert.equals("main", remote.workflow_ref(remote.current() --[[@as GHStats.Storage]]))
+      assert.is_nil(call_of("git -C " .. tmp .. "/vault commit"))
     end)
 
     it("explains how to log in when gh cannot", function()

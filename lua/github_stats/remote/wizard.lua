@@ -9,6 +9,7 @@
 ---   3. The data repository: an existing one is cloned; a new one is created private, optionally with the local
 ---      history this machine already has; without one, the guide asks what to track (the login's public
 ---      repositories, a typed list, or nothing yet).
+---      The workflow runs the code this plugin pins (`remote.COLLECT_REF`); an older pin is offered for an update.
 ---   4. The workflow's secret `GH_STATS_TOKEN`: set from the configured token, or the user does it (shown how).
 ---   5. Optionally the first run of the workflow, right now.
 ---
@@ -288,6 +289,36 @@ local function ensure_repository(s, repo, login)
   return true
 end
 
+---Step 3b: the workflow runs the code this plugin pins (`remote.COLLECT_REF`); an older pin (or `main`, as the first
+---data repositories had) is offered for an update. Declining keeps the workflow as it is.
+---@param s GHStats.Storage
+---@param repo string
+---@return nil
+local function ensure_pin(s, repo)
+  local outdated, ref = remote.workflow_outdated(s)
+  if not outdated then
+    return
+  end
+  local yes = M.ui.confirm({
+    question = ("The workflow of %s runs github_stats.nvim at %s. Pin it to %s?"):format(repo, tostring(ref), remote.COLLECT_REF),
+  })
+  if not yes then
+    return
+  end
+  local result = require("lib.nvim.ui.kit.async").await(function(deliver)
+    remote.update_workflow(s, function(ok, err)
+      deliver({ ok = ok, err = err })
+    end)
+  end)
+  if not result.ok then
+    note({
+      "Updating the workflow failed: " .. tostring(result.err),
+      "",
+      "Pushing a workflow file needs a token with the 'workflow' scope (gh auth refresh -s workflow).",
+    })
+  end
+end
+
 ---The guide itself (inside a kit.async coroutine).
 ---@param opts { auto?: boolean }
 ---@return nil
@@ -342,6 +373,8 @@ local function flow(opts)
   end
   remote.write_state({ mode = "remote", repo = repo, dir = s.dir, deferred = false })
   reload()
+
+  ensure_pin(s, repo)
 
   if not ensure_secret(repo) then
     return

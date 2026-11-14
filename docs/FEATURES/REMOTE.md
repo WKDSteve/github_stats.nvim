@@ -100,7 +100,8 @@ classic token.
 `templates/vault/.github/workflows/collect.yml`, copied into the data repository:
 
 - runs every day at 04:23 UTC, and on demand (`workflow_dispatch`);
-- installs Neovim, clones `github_stats.nvim` and `lib.nvim` (public, `main`);
+- installs Neovim (`rhysd/action-setup-vim`, pinned to a version), clones
+  `github_stats.nvim` and `lib.nvim` at a pinned tag (see "Pinned code" below);
 - runs `scripts/github_stats.lua collect --force --token-env=GH_STATS_TOKEN
   --config-dir=<the repository>`, which is the same code a background cycle runs:
   discovery from `watch_users`, the fetch, retention;
@@ -110,6 +111,30 @@ classic token.
 
 Runs on a private repository count against the Actions minutes of your account; one
 run takes about a minute.
+
+## Pinned code
+
+The workflow runs with your token, so it runs a fixed state of the two plugins, not
+whatever is on `main` tomorrow: `PLUGIN_REF` and `LIB_REF` name a tag (`collect-<date>`)
+that exists on both repositories. These tags are cut only for this workflow; they are
+not releases and promise no version.
+
+- The plugin knows its pin (`remote.COLLECT_REF`). A new data repository gets it.
+- `:GithubStats setup` compares the clone's workflow with it and offers to move an
+  older pin (or `main`, which the first data repositories had): it rewrites the
+  workflow, commits and pushes. Pushing a workflow file needs a token with the
+  `workflow` scope (`gh auth refresh -s workflow`). `:checkhealth` names an older pin
+  as `info`: the workflow keeps collecting either way.
+
+For the maintainer, a new pin is due only when the collect path changes (the CLI,
+fetcher, retention, storage, or what lib.nvim gives them):
+
+1. Land the change on `main` of both repositories, CI green.
+2. Tag both at that state with the same name and push the tags:
+   `git tag -a collect-YYYY.MM.DD -m "collect pin" && git push origin collect-YYYY.MM.DD`.
+3. Set `M.COLLECT_REF` in `lua/github_stats/remote/init.lua` to it (a tag on an earlier
+   commit than the one naming it is fine; the workflow only runs the collect path).
+4. Never move or delete a pushed `collect-*` tag: data repositories point at it.
 
 ## Moving from local to remote
 

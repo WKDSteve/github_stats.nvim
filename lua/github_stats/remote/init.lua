@@ -26,6 +26,10 @@ M.SECRET_NAME = "GH_STATS_TOKEN"
 M.DEFAULT_REPO_NAME = "github-stats-vault"
 M.PLUGIN_URL = "https://github.com/WKDSteve/github_stats.nvim.git"
 M.LIB_URL = "https://github.com/WKDSteve/lib.nvim.git"
+---The tag a data repository's workflow clones github_stats.nvim and lib.nvim at: immutable, set on both repositories,
+---not a release. A new one is cut only when the collect path changes (docs/FEATURES/REMOTE.md, "Pinned code"); the
+---setup guide offers to move an older workflow to it.
+M.COLLECT_REF = "collect-2026.11.14"
 
 ---@type GHStats.Storage|nil
 local current = nil
@@ -195,43 +199,108 @@ function M.pull(s, on_done)
   end)
 end
 
+---Commit `path` when it changed, rebase onto what the workflow pushed in the meantime, push. Nothing to commit is a
+---success with `pushed = false`.
+---@param s GHStats.Storage
+---@param path string relative to the clone
+---@param message string
+---@param on_done fun(ok: boolean, err: string|nil, pushed: boolean)
+---@return nil
+local function commit_and_push(s, path, message, on_done)
+  local git = M.git
+  local opts = { dir = s.dir, timeout_ms = 120000, env = { GIT_TERMINAL_PROMPT = "0" } }
+  local function failed(res)
+    on_done(false, proc.reason(res), false)
+  end
+  git.run_async({ "status", "--porcelain", "--", path }, opts, function(st)
+    if not st.ok then
+      return failed(st)
+    end
+    if vim.trim(st.stdout or "") == "" then
+      on_done(true, nil, false)
+      return
+    end
+    git.run_async({ "add", "--", path }, opts, function(add)
+      if not add.ok then
+        return failed(add)
+      end
+      git.run_async({ "commit", "--quiet", "-m", message, "--", path }, opts, function(commit)
+        if not commit.ok then
+          return failed(commit)
+        end
+        git.run_async({ "pull", "--rebase", "--quiet" }, opts, function(rebase)
+          if not rebase.ok then
+            return failed(rebase)
+          end
+          git.push_async({ dir = s.dir }, function(ok, err)
+            on_done(ok, err, ok)
+          end)
+        end)
+      end)
+    end)
+  end)
+end
+
 ---Commit and push a changed `config.json` (the one file a machine writes), after a rebase onto what the workflow
 ---pushed in the meantime. Nothing to do is a success.
 ---@param s GHStats.Storage
 ---@param on_done fun(ok: boolean, err: string|nil, pushed: boolean)
 ---@return nil
 function M.push_config(s, on_done)
-  local git = M.git
-  local opts = { dir = s.dir, timeout_ms = 120000, env = { GIT_TERMINAL_PROMPT = "0" } }
-  git.run_async({ "status", "--porcelain", "--", "config.json" }, opts, function(st)
-    if not st.ok then
-      on_done(false, proc.reason(st), false)
-      return
-    end
-    if vim.trim(st.stdout or "") == "" then
-      on_done(true, nil, false)
-      return
-    end
-    git.run_async(
-      { "commit", "--quiet", "-m", "config: tracked repositories changed", "--", "config.json" },
-      opts,
-      function(commit)
-        if not commit.ok then
-          on_done(false, proc.reason(commit), false)
-          return
-        end
-        git.run_async({ "pull", "--rebase", "--quiet" }, opts, function(rebase)
-          if not rebase.ok then
-            on_done(false, proc.reason(rebase), false)
-            return
-          end
-          git.push_async({ dir = s.dir }, function(ok, err)
-            on_done(ok, err, ok)
-          end)
-        end)
-      end
-    )
-  end)
+  commit_and_push(s, "config.json", "config: tracked repositories changed", on_done)
+end
+
+---Where the workflow lives in a clone.
+---@param s GHStats.Storage
+---@return string
+function M.workflow_path(s)
+  return s.dir .. "/.github/workflows/" .. M.WORKFLOW_FILE
+end
+
+---The github_stats.nvim ref the clone's workflow runs (`PLUGIN_REF`), nil when there is no workflow or no pin in it.
+---@param s GHStats.Storage
+---@return string|nil
+function M.workflow_ref(s)
+  local fd = io.open(M.workflow_path(s), "rb")
+  if not fd then
+    return nil
+  end
+  local text = fd:read("*a")
+  fd:close()
+  return text:match('PLUGIN_REF:%s*"([^"]+)"')
+end
+
+---Whether the clone's workflow runs another github_stats.nvim than this plugin's pin (`M.COLLECT_REF`).
+---@param s GHStats.Storage
+---@return boolean outdated
+---@return string|nil ref what it runs now
+function M.workflow_outdated(s)
+  local ref = M.workflow_ref(s)
+  return ref ~= nil and ref ~= M.COLLECT_REF, ref
+end
+
+---Rewrite the clone's workflow from this plugin's template (pinned to `M.COLLECT_REF`), commit and push it. Pushing a
+---workflow file needs a token with the `workflow` scope (git's credential helper or `gh auth setup-git`).
+---@param s GHStats.Storage
+---@param on_done fun(ok: boolean, err: string|nil, pushed: boolean)
+---@return nil
+function M.update_workflow(s, on_done)
+  local repo = M.repo_of(s)
+  if not repo then
+    on_done(false, "the clone's origin names no GitHub repository", false)
+    return
+  end
+  local ok, err = require("github_stats.remote.create").write_workflow(s.dir, repo)
+  if not ok then
+    on_done(false, err, false)
+    return
+  end
+  commit_and_push(
+    s,
+    ".github/workflows/" .. M.WORKFLOW_FILE,
+    ("workflow: run github_stats.nvim and lib.nvim at %s"):format(M.COLLECT_REF),
+    on_done
+  )
 end
 
 ---After new data arrived: forget what was read before and bring the digests other programs read up to date.

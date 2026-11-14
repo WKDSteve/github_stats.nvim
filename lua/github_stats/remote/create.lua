@@ -91,6 +91,36 @@ function M.copy_tree(from, to)
   return copied, nil
 end
 
+---The placeholder values of the templates.
+---@param repo string
+---@param refs? { plugin_ref?: string, lib_ref?: string }
+---@return table<string, string>
+function M.values(repo, refs)
+  refs = refs or {}
+  return {
+    PLUGIN_URL = remote.PLUGIN_URL,
+    PLUGIN_REF = refs.plugin_ref or remote.COLLECT_REF,
+    LIB_URL = remote.LIB_URL,
+    LIB_REF = refs.lib_ref or remote.COLLECT_REF,
+    PLUGIN_HOME = (remote.PLUGIN_URL:gsub("%.git$", "")),
+    REPO = repo,
+  }
+end
+
+---(Re)write only the workflow of the data repository in `dir`, pinned to `remote.COLLECT_REF`.
+---@param dir string
+---@param repo string
+---@return boolean ok
+---@return string|nil err
+function M.write_workflow(dir, repo)
+  local rel = ".github/workflows/collect.yml"
+  local text = read_file(M.template_dir() .. "/" .. rel)
+  if not text then
+    return false, ("template missing: %s/%s"):format(M.template_dir(), rel)
+  end
+  return write_file(dir .. "/" .. rel, fill(text, M.values(repo)))
+end
+
 ---Write the files of a data repository into `dir`.
 ---@param dir string
 ---@param opts GHStats.Remote.ScaffoldOpts
@@ -112,14 +142,7 @@ function M.scaffold(dir, opts)
     end
   end
 
-  local values = {
-    PLUGIN_URL = remote.PLUGIN_URL,
-    PLUGIN_REF = opts.plugin_ref or "main",
-    LIB_URL = remote.LIB_URL,
-    LIB_REF = opts.lib_ref or "main",
-    PLUGIN_HOME = (remote.PLUGIN_URL:gsub("%.git$", "")),
-    REPO = opts.repo,
-  }
+  local values = M.values(opts.repo, opts)
   local templates = M.template_dir()
   for _, rel in ipairs({ ".github/workflows/collect.yml", "README.md", ".gitignore" }) do
     local text = read_file(templates .. "/" .. rel)

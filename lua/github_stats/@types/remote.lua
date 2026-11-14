@@ -46,8 +46,8 @@
 ---@class GHStats.Remote.ScaffoldOpts
 ---@field repo string "owner/name"
 ---@field seed_dir? string A local history to take over (its config.json, data/ and the rest)
----@field plugin_ref? string Branch of github_stats.nvim the workflow uses (default "main")
----@field lib_ref? string Branch of lib.nvim (default "main")
+---@field plugin_ref? string Tag or branch of github_stats.nvim the workflow uses (default `remote.COLLECT_REF`)
+---@field lib_ref? string Tag or branch of lib.nvim (default `remote.COLLECT_REF`)
 ---@field config? table Values over the defaults when a fresh config.json is written (what to track); a config.json taken over from `seed_dir` is left as it is
 
 ---@class GHStats.Remote.CreateOpts : GHStats.Remote.ScaffoldOpts
