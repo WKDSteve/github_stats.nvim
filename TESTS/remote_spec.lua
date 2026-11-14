@@ -1,4 +1,7 @@
 ---@diagnostic disable: undefined-global
+-- The specs replace module functions with stand-ins (state_file, invalidate, get_token, vim.fn.executable, ...) and
+-- put the real ones back afterwards: LuaLS reads each replacement as a second definition of the field.
+---@diagnostic disable: duplicate-set-field
 
 -- Specs for github_stats.remote (where the history lives), remote.create (a new data repository) and
 -- remote.wizard (the setup guide).
@@ -390,7 +393,7 @@ describe("remote", function()
     it("refuses a name that is not owner/name", function()
       local ok, err = require("github_stats.remote.create").scaffold(tmp .. "/x", { repo = "data" })
       assert.is_false(ok)
-      assert.matches("not a repository name", err)
+      assert.matches("not a repository name", assert(err))
     end)
   end)
 
@@ -410,7 +413,7 @@ describe("remote", function()
       vim.fn.writefile({ "x" }, tmp .. "/full/x")
       local ok, err = require("github_stats.remote.create").create({ repo = "me/data", dir = tmp .. "/full" })
       assert.is_false(ok)
-      assert.matches("not empty", err)
+      assert.matches("not empty", assert(err))
       assert.is_nil(call_of("gh repo create"))
     end)
   end)

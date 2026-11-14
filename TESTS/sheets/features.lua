@@ -10,6 +10,12 @@ return {
     docs = "docs/FEATURES/FETCHING.md",
   },
   {
+    id = "github_stats.remote",
+    title = "The history lives in a private data repository GitHub Actions fills daily; every machine only pulls it",
+    surface = { "command:GithubStats setup", "command:GithubStats sync" },
+    docs = "docs/FEATURES/REMOTE.md",
+  },
+  {
     id = "github_stats.watch-users",
     title = "The repositories of the users in watch_users are discovered without listing them one by one",
     docs = "docs/FEATURES/FETCHING.md",

@@ -27,32 +27,6 @@ M.DEFAULT_REPO_NAME = "github-stats-vault"
 M.PLUGIN_URL = "https://github.com/WKDSteve/github_stats.nvim.git"
 M.LIB_URL = "https://github.com/WKDSteve/lib.nvim.git"
 
----@alias GHStats.StorageMode "remote"|"local"
----@alias GHStats.StorageStatus "local"|"ready"|"clone"|"unset"
-
----What `setup()` takes as `storage`: the mode alone, or a table.
----@class GHStats.StorageOptions
----@field mode? GHStats.StorageMode
----@field repo? string "owner/name" of the data repository
----@field dir? string Where it is cloned (default: `stdpath("data")/github_stats.nvim-vault`)
----@field pull_interval_minutes? integer How often a running editor pulls (default 60)
-
----The resolved storage of this session.
----@class GHStats.Storage
----@field mode GHStats.StorageMode
----@field repo string|nil
----@field dir string
----@field pull_interval_minutes integer
----@field explicit_mode boolean The mode came from `setup()`
----@field deferred boolean The user chose "later" in the guide: it does not open by itself again
-
----What the state file keeps for this machine.
----@class GHStats.StorageState
----@field mode? GHStats.StorageMode
----@field repo? string
----@field dir? string
----@field deferred? boolean
-
 ---@type GHStats.Storage|nil
 local current = nil
 

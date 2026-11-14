@@ -91,12 +91,6 @@ function M.copy_tree(from, to)
   return copied, nil
 end
 
----@class GHStats.Remote.ScaffoldOpts
----@field repo string "owner/name"
----@field seed_dir? string A local history to take over (its config.json, data/ and the rest)
----@field plugin_ref? string Branch of github_stats.nvim the workflow uses (default "main")
----@field lib_ref? string Branch of lib.nvim (default "main")
-
 ---Write the files of a data repository into `dir`.
 ---@param dir string
 ---@param opts GHStats.Remote.ScaffoldOpts
@@ -150,9 +144,6 @@ function M.scaffold(dir, opts)
   end
   return true, nil, copied
 end
-
----@class GHStats.Remote.CreateOpts : GHStats.Remote.ScaffoldOpts
----@field dir string Where the clone lives on this machine (must not exist yet, or be empty)
 
 ---Create the data repository: files, first commit, private GitHub repository, push.
 ---@param opts GHStats.Remote.CreateOpts

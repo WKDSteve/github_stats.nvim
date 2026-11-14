@@ -457,10 +457,12 @@ function M.check()
       health.ok(("remote mode: data repository %s, clone in %s"):format(current.repo or "?", current.dir))
     elseif status == "local" then
       health.ok("local mode: this Neovim fetches into its own folder")
+    -- Neither state needs the user to act (UI-57): the clone happens by itself, and until the guide has run the
+    -- plugin fetches locally.
     elseif status == "clone" then
-      health.warn(("remote mode: %s is not cloned yet (it is cloned on the next start)"):format(current.repo))
+      health.info(("remote mode: %s is not cloned yet (it is cloned on the next start)"):format(current.repo))
     else
-      health.warn("remote mode is not set up yet: fetching locally meanwhile", { "Run :GithubStats setup" })
+      health.info("remote mode is not set up yet: fetching locally meanwhile (:GithubStats setup)")
     end
   end
 

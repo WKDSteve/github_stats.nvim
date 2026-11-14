@@ -1,23 +1,12 @@
 ---@module 'github_stats.remote.proc'
 ---@brief The one place the remote mode starts `git` and `gh`: awaitable inside the setup guide, callback-shaped elsewhere.
 ---@description
---- Every command goes through `M.exec`, which specs replace to answer without a process. Inside a coroutine that
---- `lib.nvim.ui.kit.async.run` started, `M.run` suspends it until the command is done (the editor keeps running);
---- anywhere else it blocks, which only the headless setup (`remote.create` from a script) does.
+--- Every command goes through `M.exec`, which specs replace to answer without a process. Inside a flow `M.flow`
+--- started (a `lib.nvim.ui.kit.async` coroutine), `M.run` suspends it until the command is done (the editor keeps
+--- running); anywhere else it blocks, which only the headless setup (`remote.create` from a script) does. Types:
+--- `@types/remote.lua`.
 
 local M = {}
-
----@class GHStats.Remote.ProcResult
----@field ok boolean exit code 0 and not killed
----@field code integer
----@field stdout string
----@field stderr string
-
----@class GHStats.Remote.ProcOpts
----@field cwd? string
----@field input? string standard input (a secret goes here, never on the command line)
----@field env? table<string, string>
----@field timeout_ms? integer default 120000
 
 ---Start `cmd` and call `on_done` (scheduled) with its result. Replaced by specs.
 ---@param cmd string[]

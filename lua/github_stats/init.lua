@@ -2,14 +2,16 @@
 ---@brief GitHub Stats collector for Neovim
 ---@description
 --- Main entry point for GitHub Stats plugin.
---- Automatically fetches repository traffic data once per day.
---- Provides commands for manual fetching and analytics.
+--- Decides where the history lives (`github_stats.remote`: a data repository GitHub Actions fills, the default, or
+--- this machine's folder), loads the configuration from there, and registers the commands and the startup autocmd.
 ---
 --- Configuration:
----   Edit ~/.config/nvim/lua/plugins/github-stats/config.json
+---   `setup()` options, over `config.json` in the data repository's clone (remote) or in `config_dir` (local)
 ---
 --- Available commands (built via lib.nvim.bindings.usercmd.composer):
----   :GithubStats fetch [force]              - Fetch all metrics
+---   :GithubStats setup                      - Guide: remote data repository or local
+---   :GithubStats sync                       - Remote: push config.json, pull the data repository
+---   :GithubStats fetch [force]              - Fetch all metrics (remote: start the workflow)
 ---   :GithubStats show {repo} {metric}       - Show detailed stats
 ---   :GithubStats summary {clones|views}     - Summary across all repos
 ---   :GithubStats referrers {repo} [limit]   - Top referrers
@@ -17,7 +19,8 @@
 ---   :GithubStats chart {repo} {metric}      - Sparkline chart
 ---   :GithubStats export {repo|all} ...      - Export to CSV/Markdown
 ---   :GithubStats diff {repo} {metric} ...   - Compare two periods
----   :GithubStats compact [dry-run]          - Archive/prune old data
+---   :GithubStats compact [dry-run]          - Archive/prune old data (remote: dry-run only)
+---   :GithubStats digest                     - Rebuild the digest other programs read
 ---   :GithubStats debug                      - Debug configuration
 ---   :GithubStats[!] dashboard               - Open dashboard (! forces refresh)
 ---

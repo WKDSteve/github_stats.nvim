@@ -2,7 +2,8 @@
 ---@brief Configuration management
 ---@description
 --- Handles loading, validation, and access to user configuration.
---- Configuration is stored in ~/.config/nvim/lua/plugins/github-stats/config.json
+--- Configuration is stored in `<config_dir>/config.json`: the data repository's clone in remote mode
+--- (`github_stats.remote`), else `config_dir` (default `stdpath("config")/lua/plugins/github-stats`).
 ---
 --- The values come from `lib.lua.config.new` with two layers on top of `DEFAULTS`, lowest first:
 --- `"file"` (config.json, which the plugin writes on the first run) and `"setup"` (the table passed
