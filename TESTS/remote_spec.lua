@@ -11,7 +11,7 @@
 
 describe("remote", function()
   local remote, proc, tmp
-  local real_exec, real_state_file, real_default_dir
+  local real_exec, real_git, real_state_file, real_default_dir
   local calls, answers
 
   ---Answer a command whose line starts with `prefix` (joined by spaces).
@@ -75,10 +75,43 @@ describe("remote", function()
     end
     calls, answers = {}, {}
     proc.exec = fake_exec
+    -- lib.nvim.git, routed through the same scripted answers (and the same command lines) as everything else; the
+    -- real one runs in "against a real repository" below.
+    real_git = remote.git
+    remote.git = {
+      pull_async = function(opts, cb)
+        proc.exec({ "git", "-C", opts.dir, "rev-parse", "HEAD" }, nil, function(before)
+          proc.exec({ "git", "-C", opts.dir, "pull", "--ff-only", "--quiet" }, nil, function(res)
+            if not res.ok then
+              cb(false, proc.reason(res))
+              return
+            end
+            proc.exec({ "git", "-C", opts.dir, "rev-parse", "HEAD" }, nil, function(after)
+              cb(true, nil, before.stdout ~= after.stdout)
+            end)
+          end)
+        end)
+      end,
+      run_async = function(args, opts, cb)
+        local cmd = { "git", "-C", opts.dir }
+        vim.list_extend(cmd, args)
+        proc.exec(cmd, nil, cb)
+      end,
+      push_async = function(opts, cb)
+        proc.exec({ "git", "-C", opts.dir, "push", "--quiet" }, nil, function(r)
+          cb(r.ok, r.ok and nil or proc.reason(r))
+        end)
+      end,
+      remote_url = function(_, opts)
+        local r = proc.run({ "git", "-C", opts.dir, "remote", "get-url", "origin" })
+        return (r.ok and r.stdout ~= "") and r.stdout or nil
+      end,
+    }
   end)
 
   after_each(function()
     proc.exec = real_exec
+    remote.git = real_git
     remote.state_file, remote.default_dir = real_state_file, real_default_dir
     remote.set_current(nil)
     vim.fn.delete(tmp, "rf")
@@ -322,6 +355,73 @@ describe("remote", function()
       end, true)
       assert.is_false(result.ok)
       assert.matches("setup", result.err)
+    end)
+  end)
+
+  describe("against a real repository (lib.nvim.git, no network)", function()
+    -- The fixture's own commits run with an empty global and no system git config: no signing key, no hooks, no
+    -- user identity of the machine, the same on every runner.
+    local env
+
+    ---@param args string[]
+    ---@param cwd? string
+    local function git(args, cwd)
+      local cmd = { "git", "-c", "user.name=spec", "-c", "user.email=spec@example.invalid" }
+      vim.list_extend(cmd, args)
+      local res = vim.system(cmd, { cwd = cwd, env = env, text = true }):wait(30000)
+      assert(res.code == 0, table.concat(cmd, " ") .. ": " .. tostring(res.stderr))
+    end
+
+    before_each(function()
+      proc.exec = real_exec
+      remote.git = real_git
+      vim.fn.writefile({}, tmp .. "/empty.gitconfig")
+      env = { GIT_CONFIG_GLOBAL = tmp .. "/empty.gitconfig", GIT_CONFIG_NOSYSTEM = "1", GIT_TERMINAL_PROMPT = "0" }
+      git({ "init", "--quiet", "--bare", "-b", "main", tmp .. "/origin.git" })
+      git({ "clone", "--quiet", tmp .. "/origin.git", tmp .. "/writer" })
+      vim.fn.writefile({ "{}" }, tmp .. "/writer/config.json")
+      git({ "add", "config.json" }, tmp .. "/writer")
+      git({ "commit", "--quiet", "-m", "init" }, tmp .. "/writer")
+      git({ "push", "--quiet", "origin", "HEAD:main" }, tmp .. "/writer")
+      git({ "clone", "--quiet", tmp .. "/origin.git", tmp .. "/vault" })
+      remote.set_current(remote.resolve({ storage = { repo = "me/data" } }, {}))
+    end)
+
+    ---@return table
+    local function sync()
+      local result
+      remote.sync(function(ok, err, changed)
+        result = { ok = ok, err = err, changed = changed }
+      end, true)
+      vim.wait(30000, function()
+        return result ~= nil
+      end, 20)
+      return assert(result, "sync never answered")
+    end
+
+    it("pulls what the workflow pushed, and says when nothing came", function()
+      assert.equals("ready", remote.status(remote.current() --[[@as GHStats.Storage]]))
+      vim.fn.mkdir(tmp .. "/writer/data", "p")
+      vim.fn.writefile({ "{}" }, tmp .. "/writer/data/new.json")
+      git({ "add", "data/new.json" }, tmp .. "/writer")
+      git({ "commit", "--quiet", "-m", "collect" }, tmp .. "/writer")
+      git({ "push", "--quiet", "origin", "HEAD:main" }, tmp .. "/writer")
+
+      local first = sync()
+      assert.is_true(first.ok, first.err)
+      assert.is_true(first.changed)
+      assert.equals(1, vim.fn.filereadable(tmp .. "/vault/data/new.json"))
+
+      local second = sync()
+      assert.is_true(second.ok, second.err)
+      assert.is_false(second.changed)
+    end)
+
+    it("reads the repository's name from the clone's origin when the state has none", function()
+      local s = remote.resolve({}, {})
+      assert.is_nil(s.repo)
+      -- a local path, not github.com: no name to find
+      assert.is_nil(remote.repo_of(s))
     end)
   end)
 

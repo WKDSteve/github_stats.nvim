@@ -181,21 +181,17 @@ function M.clone(s, on_done)
   end)
 end
 
+---The git client of the clone: `lib.nvim.git` (its network verbs never wait for a password prompt). Specs replace it.
+M.git = require("lib.nvim.git")
+
 ---Pull the data repository (fast-forward only: the workflow is the only writer of `data/`).
 ---@param s GHStats.Storage
 ---@param on_done fun(ok: boolean, err: string|nil, changed: boolean)
 ---@return nil
 function M.pull(s, on_done)
-  proc.exec({ "git", "-C", s.dir, "rev-parse", "HEAD" }, nil, function(before)
-    proc.exec({ "git", "-C", s.dir, "pull", "--ff-only", "--quiet" }, nil, function(res)
-      if not res.ok then
-        on_done(false, proc.reason(res), false)
-        return
-      end
-      proc.exec({ "git", "-C", s.dir, "rev-parse", "HEAD" }, nil, function(after)
-        on_done(true, nil, vim.trim(before.stdout) ~= vim.trim(after.stdout))
-      end)
-    end)
+  M.git.pull_async({ dir = s.dir }, function(ok, err, changed)
+    -- `changed` is nil when git could not say (no HEAD before the pull): then the read memo is dropped anyway.
+    on_done(ok, err, ok and changed ~= false)
   end)
 end
 
@@ -205,30 +201,32 @@ end
 ---@param on_done fun(ok: boolean, err: string|nil, pushed: boolean)
 ---@return nil
 function M.push_config(s, on_done)
-  proc.exec({ "git", "-C", s.dir, "status", "--porcelain", "--", "config.json" }, nil, function(st)
+  local git = M.git
+  local opts = { dir = s.dir, timeout_ms = 120000, env = { GIT_TERMINAL_PROMPT = "0" } }
+  git.run_async({ "status", "--porcelain", "--", "config.json" }, opts, function(st)
     if not st.ok then
       on_done(false, proc.reason(st), false)
       return
     end
-    if vim.trim(st.stdout) == "" then
+    if vim.trim(st.stdout or "") == "" then
       on_done(true, nil, false)
       return
     end
-    proc.exec(
-      { "git", "-C", s.dir, "commit", "--quiet", "-m", "config: tracked repositories changed", "--", "config.json" },
-      nil,
+    git.run_async(
+      { "commit", "--quiet", "-m", "config: tracked repositories changed", "--", "config.json" },
+      opts,
       function(commit)
         if not commit.ok then
           on_done(false, proc.reason(commit), false)
           return
         end
-        proc.exec({ "git", "-C", s.dir, "pull", "--rebase", "--quiet" }, nil, function(rebase)
+        git.run_async({ "pull", "--rebase", "--quiet" }, opts, function(rebase)
           if not rebase.ok then
             on_done(false, proc.reason(rebase), false)
             return
           end
-          proc.exec({ "git", "-C", s.dir, "push", "--quiet" }, nil, function(push)
-            on_done(push.ok, push.ok and nil or proc.reason(push), push.ok)
+          git.push_async({ dir = s.dir }, function(ok, err)
+            on_done(ok, err, ok)
           end)
         end)
       end
@@ -316,11 +314,11 @@ function M.repo_of(s)
   if s.repo then
     return s.repo
   end
-  local res = proc.run({ "git", "-C", s.dir, "remote", "get-url", "origin" }, { timeout_ms = 10000 })
-  if not res.ok then
+  local url = M.git.remote_url("origin", { dir = s.dir })
+  if not url then
     return nil
   end
-  local owner, name = vim.trim(res.stdout):match("github%.com[:/]([%w._-]+)/([%w._-]+)$")
+  local owner, name = vim.trim(url):match("github%.com[:/]([%w._-]+)/([%w._-]+)$")
   if not owner then
     return nil
   end

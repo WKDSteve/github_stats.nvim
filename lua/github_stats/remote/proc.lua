@@ -81,10 +81,12 @@ function M.run(cmd, opts)
 end
 
 ---The first line of what a failed command said, for a message.
----@param res GHStats.Remote.ProcResult
+---@param res GHStats.Remote.ProcResult|Lib.Git.RunResult
 ---@return string
 function M.reason(res)
-  local text = vim.trim(res.stderr ~= "" and res.stderr or res.stdout)
+  -- Also takes lib.nvim.git's results, whose stderr is nil on the legacy runner.
+  local stderr, stdout = res.stderr or "", res.stdout or ""
+  local text = vim.trim(stderr ~= "" and stderr or stdout)
   if text == "" then
     return ("exit code %d"):format(res.code)
   end
