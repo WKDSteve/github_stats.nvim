@@ -166,6 +166,26 @@ describe("remote", function()
       assert.equals("me\n", got)
     end)
 
+    it("runs a real process: exit code, stdout and stderr arrive (the stub-free path)", function()
+      proc.exec = real_exec
+      local script = tmp .. "/echo.lua"
+      vim.fn.writefile({
+        "local got = io.stdin:read('*a')",
+        "io.stdout:write('in=' .. got)",
+        "io.stderr:write('err')",
+        "os.exit(got == 'fail' and 3 or 0)",
+      }, script)
+      local cmd = { vim.v.progpath, "--headless", "-u", "NONE", "-i", "NONE", "-n", "-l", script }
+      local bad = proc.run(cmd, { input = "fail", timeout_ms = 30000 })
+      local fine = proc.run(cmd, { input = "secret", timeout_ms = 30000 })
+      proc.exec = fake_exec
+      assert.is_false(bad.ok)
+      assert.equals(3, bad.code)
+      assert.matches("err", bad.stderr)
+      assert.is_true(fine.ok, fine.stderr)
+      assert.equals("in=secret", fine.stdout)
+    end)
+
     it("names the first line of what a failed command said", function()
       assert.equals("fatal: no", proc.reason({ ok = false, code = 1, stdout = "", stderr = "fatal: no\nmore" }))
       assert.equals("exit code 3", proc.reason({ ok = false, code = 3, stdout = "", stderr = "" }))

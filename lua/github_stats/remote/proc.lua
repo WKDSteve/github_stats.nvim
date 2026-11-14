@@ -28,15 +28,15 @@ function M.exec(cmd, opts, on_done)
   opts = opts or {}
   require("lib.nvim.cross.run_argv").run_async_captured(
     cmd,
-    function(res)
-      vim.schedule(function()
-        on_done({
-          ok = res.ok == true,
-          code = res.code or -1,
-          stdout = res.stdout or "",
-          stderr = res.stderr or "",
-        })
-      end)
+    -- Positional, not a result table; already scheduled. A process killed by a signal reads ok = true there,
+    -- so the signal decides as well.
+    function(ok, output, code, stderr, signal)
+      on_done({
+        ok = ok == true and (signal or 0) == 0,
+        code = code or -1,
+        stdout = output or "",
+        stderr = stderr or "",
+      })
     end,
     opts.input,
     {
