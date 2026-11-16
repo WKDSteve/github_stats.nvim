@@ -119,4 +119,5 @@ github_stats.nvim is released under the [MIT License](https://opensource.org/lic
 
 - [docmap-desktop](https://github.com/WKDSteve/docmap-desktop): The traffic view of docmap-desktop reads the traffic digest github_stats.nvim writes. ([picture](assets/graphs/pair/docmap-desktop--github_stats.nvim.png))
 - [docmap.nvim](https://github.com/WKDSteve/docmap.nvim): The `traffic` mode of `:DocBrowse` reads the traffic digest that github_stats.nvim publishes for the repository. ([picture](assets/graphs/pair/docmap.nvim--github_stats.nvim.png))
+- [ui.nvim](https://github.com/WKDSteve/ui.nvim): The statusline module `github_stats_badge` of ui.nvim shows the views of the week from github_stats.nvim, once github_stats.nvim is loaded. ([picture](assets/graphs/pair/ui.nvim--github_stats.nvim.png))
 <!-- connections:end -->
