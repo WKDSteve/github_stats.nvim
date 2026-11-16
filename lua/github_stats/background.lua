@@ -34,7 +34,7 @@ local function run_cycle()
   -- The history is synced between machines, the digest is not: when the other
   -- machine fetched, this one skips its own fetch for the interval and would
   -- never rebuild its digest. So every cycle first checks whether the digest
-  -- lags the history (a directory listing per repository, cheap) and rebuilds
+  -- lags the history (a stat per history folder and digest, cheap) and rebuilds
   -- it if so. Scheduled and pcall-wrapped: it must not hold up the fetch below.
   vim.schedule(function()
     pcall(function()

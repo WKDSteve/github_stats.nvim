@@ -31,6 +31,7 @@ the plugin already holds, and rebuilt from it at any time.
 ```
 <default>/github_stats.nvim/root.json            the pointer, always here
 <digest_dir>/digest/<owner_repo>.json            one file per repository
+<default>/github_stats.nvim/stale-memo.json      private to the plugin, not part of this contract
 ```
 
 - `<default>` is Neovim's `stdpath("data")`. `digest_dir` defaults to the same
@@ -150,7 +151,7 @@ built by copying named fields, so nothing else from the plugin's configuration
 | Trigger | What happens |
 |---|---|
 | After a fetch (`:GithubStats fetch`, the background cycle, the dashboard's refresh keys) | The digests of the repositories that got data are rebuilt on later event-loop turns, one repository per turn and `root.json` last, so no single turn holds the editor for the whole set. A failure never fails or slows the fetch. |
-| Every background cycle, first | If any tracked repository's digest is missing or was built from older history than is now on disk (the other machine fetched and the history synced), everything is rebuilt. The check is a directory listing per repository. |
+| Every background cycle, first | If any tracked repository's digest is missing or was built from older history than is now on disk (the other machine fetched and the history synced), everything is rebuilt. While nothing changed, the check is one `stat` per history folder and per digest file: a folder is listed and a digest decoded only after it changed, and what the check learnt is kept in `stale-memo.json` for the next session (deleting it only costs one full check). |
 | `:GithubStats digest` | Rebuild all now. The answer to "the local digest lags after a sync". |
 
 Rules for every write: **atomic** (a temp file in the same folder, then a rename —

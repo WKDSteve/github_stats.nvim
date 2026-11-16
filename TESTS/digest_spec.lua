@@ -593,6 +593,102 @@ describe("digest", function()
       assert(ok, err)
     end)
 
+    ---Count what `digest.stale()` does to the disk while `fn` runs: history listings and digest decodes.
+    ---@param fn fun()
+    ---@return integer listings
+    ---@return integer decodes
+    local function count_io(fn)
+      local real_scandir, real_read = vim.uv.fs_scandir, json.read
+      local listings, decodes = 0, 0
+      vim.uv.fs_scandir = function(...)
+        listings = listings + 1
+        return real_scandir(...)
+      end
+      json.read = function(path, ...)
+        if type(path) == "string" and path:find("/digest/", 1, true) then
+          decodes = decodes + 1
+        end
+        return real_read(path, ...)
+      end
+      local ok, err = pcall(fn)
+      vim.uv.fs_scandir, json.read = real_scandir, real_read
+      assert(ok, err)
+      return listings, decodes
+    end
+
+    ---A new Neovim session: every module loaded afresh, the same data and digest places.
+    local function new_session()
+      local default = digest.default_dir()
+      fresh_modules()
+      config.init({
+        config_dir = tmp_dir .. "/config",
+        repos = { REPO, "owner/beta" },
+        digest_dir = tmp_dir .. "/digests",
+      })
+      digest.default_dir = function()
+        return default
+      end
+    end
+
+    it("decodes a digest only after it changed", function()
+      seed(REPO)
+      digest.write_all()
+      assert.is_false((digest.stale()))
+
+      local listings, decodes = count_io(function()
+        assert.is_false((digest.stale()))
+      end)
+      assert.equals(0, listings)
+      assert.equals(0, decodes, "an unchanged digest is not decoded again")
+
+      local doc = published()
+      doc.fetched = "2000-01-01T00:00:00Z"
+      json.write(digest.digest_file(REPO), doc)
+      local _, rereads = count_io(function()
+        assert.is_true((digest.stale()), "a digest rewritten by someone else is read again")
+      end)
+      assert.equals(1, rereads)
+    end)
+
+    it("starts a new session without listing the history or decoding a digest", function()
+      seed(REPO)
+      digest.write_all()
+      assert.is_false((digest.stale()))
+
+      new_session()
+      local listings, decodes = count_io(function()
+        assert.is_false((digest.stale()))
+      end)
+      assert.equals(0, listings, "the first check of a session reuses what the last one learnt")
+      assert.equals(0, decodes)
+    end)
+
+    it("still sees a fetch that landed between two sessions", function()
+      seed(REPO)
+      digest.write_all()
+      assert.is_false((digest.stale()))
+
+      write_daily_fetch(REPO, "views", date_str(0) .. "T23-59-57", 10)
+      new_session()
+
+      assert.is_true((digest.stale()))
+    end)
+
+    it("ignores a memo file it cannot use", function()
+      seed(REPO)
+      digest.write_all()
+      vim.fn.mkdir(vim.fn.fnamemodify(digest.memo_path(), ":h"), "p")
+      vim.fn.writefile({ "{ not json" }, digest.memo_path())
+
+      new_session()
+      assert.is_false((digest.stale()))
+      json.write(digest.memo_path(), { schema = 1, repos = { [REPO] = { key = 3, digest_key = {}, fetched = 1 } } })
+      new_session()
+      assert.is_false((digest.stale()))
+      write_daily_fetch(REPO, "views", date_str(0) .. "T23-59-56", 10)
+      assert.is_true((digest.stale()))
+    end)
+
     it("treats a digest from before `fetched` existed as stale", function()
       seed(REPO)
       digest.write_all()

@@ -152,10 +152,107 @@ function M.digest_file(repo)
   return M.digest_dir() .. "/digest/" .. M.file_stem(repo) .. ".json"
 end
 
+---Where the stale check keeps what it learnt between Neovim sessions. Private to this plugin (readers ignore
+---it), next to `root.json` because that place is always local to the machine, even when `digest_dir` points
+---into the synced history.
+---@return string
+function M.memo_path()
+  return M.default_dir() .. "/stale-memo.json"
+end
+
 ---@internal
----Per repository: the directory signature of the last listing and what it found (`newest_fetch`).
----@type table<string, { key: string, fetched: string? }>
-local fetch_memo = {}
+---Per repository: the directory signature of the last listing and what it found (`newest_fetch`), and the
+---signature of the digest file last read and the `fetched` it held (`digest_fetched`). Every entry is only
+---used while its signature still matches what is on disk, so an outdated one costs a re-read, never a wrong
+---answer. Loaded from `M.memo_path()` on first use: the first check of a session is the common case (the
+---background cycle runs about four times per session), and without the file it listed every history
+---directory and decoded every digest again.
+---@type table<string, { key: string?, fetched: string?, digest_key: string?, digest_fetched: string|false|nil }>?
+local fetch_memo = nil
+local memo_dirty = false
+
+---@internal
+---@return table<string, table>
+local function memo()
+  if fetch_memo then
+    return fetch_memo
+  end
+  fetch_memo = {}
+  local ok, stored = pcall(fs_json.read, M.memo_path())
+  if ok and type(stored) == "table" and stored.schema == 1 and type(stored.repos) == "table" then
+    for repo, entry in pairs(stored.repos) do
+      if type(repo) == "string" and type(entry) == "table" then
+        fetch_memo[repo] = {
+          key = type(entry.key) == "string" and entry.key or nil,
+          fetched = type(entry.fetched) == "string" and entry.fetched or nil,
+          digest_key = type(entry.digest_key) == "string" and entry.digest_key or nil,
+          digest_fetched = type(entry.digest_fetched) == "string" and entry.digest_fetched or false,
+        }
+      end
+    end
+  end
+  return fetch_memo
+end
+
+---@internal
+---@param repo string
+---@return table
+local function memo_entry(repo)
+  local all = memo()
+  local entry = all[repo]
+  if not entry then
+    entry = {}
+    all[repo] = entry
+  end
+  return entry
+end
+
+---@internal
+---Persist the memo when a check learnt something. A failed write only costs the next session a re-read.
+---@return nil
+local function save_memo()
+  if not memo_dirty or not fetch_memo then
+    return
+  end
+  memo_dirty = false
+  pcall(fs_json.write, M.memo_path(), { schema = 1, repos = fetch_memo })
+end
+
+---@internal
+---Identity of a file as far as "did it change?" goes. An atomic write (temp file + rename) gives a new file,
+---so the inode changes along with the mtime even on a file system with a coarse clock.
+---@param path string
+---@return string?
+local function file_key(path)
+  local st = uv.fs_stat(path)
+  if not st or st.type ~= "file" then
+    return nil
+  end
+  return ("%s:%s:%d.%d:%d"):format(path, tostring(st.ino), st.mtime.sec, st.mtime.nsec, st.size)
+end
+
+---@internal
+---The `fetched` a repository's digest file holds; false when the file is missing, unreadable or has none.
+---Decoded only when the file changed since the last look (a 400-day digest is about 20 KB of JSON, and the
+---stale check used to decode every one of them on every check).
+---@param repo string
+---@param path string
+---@return string|false
+local function digest_fetched(repo, path)
+  local key = file_key(path)
+  if not key then
+    return false
+  end
+  local entry = memo_entry(repo)
+  if entry.digest_key == key then
+    return entry.digest_fetched or false
+  end
+  local existing = fs_json.read(path)
+  local fetched = type(existing) == "table" and type(existing.fetched) == "string" and existing.fetched or false
+  entry.digest_key, entry.digest_fetched = key, fetched
+  memo_dirty = true
+  return fetched
+end
 
 ---@internal
 ---Turn a history file stamp (`2026-09-25T10-30-00`, UTC) into ISO 8601.
@@ -183,9 +280,9 @@ local function newest_fetch(repo)
     signature[#signature + 1] = dir .. (st and st.mtime and (":%d.%d"):format(st.mtime.sec, st.mtime.nsec) or ":none")
   end
   local key = table.concat(signature, "|")
-  local memo = fetch_memo[repo]
-  if memo and memo.key == key then
-    return memo.fetched
+  local entry = memo_entry(repo)
+  if entry.key == key then
+    return entry.fetched
   end
   local newest
   for _, metric in ipairs(SNAPSHOT_METRICS) do
@@ -202,7 +299,8 @@ local function newest_fetch(repo)
     end
   end
   local fetched = newest and stamp_to_iso(newest) or nil
-  fetch_memo[repo] = { key = key, fetched = fetched }
+  entry.key, entry.fetched = key, fetched
+  memo_dirty = true
   return fetched
 end
 
@@ -507,6 +605,7 @@ function M.write(repos, opts)
     end
   end
 
+  save_memo()
   if opts and opts.skip_root then
     return result
   end
@@ -532,21 +631,24 @@ end
 ---The case this exists for: the history is synced between two machines, this
 ---machine's digest is not. A fetch on the other one makes this one skip its own
 ---for the interval, so nothing here would rebuild the digest -- it would stay
----behind although the data is new. Cheap on purpose: one directory listing per
----metric, plus one small digest file per repository.
+---behind although the data is new. Cheap on purpose: while nothing changed it is
+---one `stat` per history directory and per digest file; a directory is listed and
+---a digest decoded only after it changed, and what was learnt survives the
+---session (`M.memo_path()`).
 ---@return boolean stale
 ---@return string? repo # The first repository found out of date
 function M.stale()
+  local stale, out_of_date = false, nil
+  local dir = M.digest_dir() .. "/digest/"
   for _, repo in ipairs(config.get_repos()) do
     local fetched = newest_fetch(repo)
-    if fetched then
-      local existing = fs_json.read(M.digest_file(repo))
-      if type(existing) ~= "table" or existing.fetched ~= fetched then
-        return true, repo
-      end
+    if fetched and digest_fetched(repo, dir .. M.file_stem(repo) .. ".json") ~= fetched then
+      stale, out_of_date = true, repo
+      break
     end
   end
-  return false, nil
+  save_memo()
+  return stale, out_of_date
 end
 
 ---Rebuild everything if the digests are out of date; otherwise only make sure
