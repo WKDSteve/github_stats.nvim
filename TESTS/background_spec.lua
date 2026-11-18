@@ -11,7 +11,7 @@
 describe("background", function()
   local background, config
   local tmp_dir
-  local real_api, real_fetcher
+  local real_api, real_fetcher, real_remote
   local fetch_calls, discovery_calls, discovery_responder
   local notices
   local deferred, timers
@@ -71,6 +71,7 @@ describe("background", function()
 
     real_api = package.loaded["github_stats.api"]
     real_fetcher = package.loaded["github_stats.fetcher"]
+    real_remote = package.loaded["github_stats.remote"]
 
     package.loaded["github_stats.fetcher"] = {
       fetch_all = function(force, callback, opts)
@@ -104,6 +105,10 @@ describe("background", function()
     end
 
     background = require("github_stats.background")
+    -- The specs run headless; the first cycle runs only with a UI (its own case below says so without this).
+    background.has_ui = function()
+      return true
+    end
   end)
 
   after_each(function()
@@ -112,6 +117,7 @@ describe("background", function()
     package.loaded["github_stats.fetcher"] = real_fetcher
     package.loaded["github_stats.repo_discovery"] = nil
     package.loaded["github_stats.digest"] = nil
+    package.loaded["github_stats.remote"] = real_remote
     for _, name in ipairs({ "github_stats.config", "github_stats.background" }) do
       package.loaded[name] = nil
     end
@@ -282,6 +288,20 @@ describe("background", function()
       assert.equals(1, #fetch_calls)
     end)
 
+    it("skips the first cycle without a UI (a headless run), but not the recurring one", function()
+      background.has_ui = function()
+        return false
+      end
+
+      start_captured()
+      deferred[1].fn()
+      assert.equals(0, #fetch_calls)
+
+      timers[1].started.cb()
+      vim.wait(50)
+      assert.equals(1, #fetch_calls)
+    end)
+
     it("runs the same cycle from the recurring timer", function()
       start_captured()
       timers[1].started.cb()
@@ -289,6 +309,105 @@ describe("background", function()
 
       assert.equals(1, #fetch_calls)
     end)
+  end)
+end)
+
+describe("background in remote mode", function()
+  local background, syncs, due, due_calls
+  local real_remote
+
+  before_each(function()
+    syncs, due_calls, due = 0, 0, true
+    real_remote = package.loaded["github_stats.remote"]
+    local s = { mode = "remote", dir = "vault", pull_interval_minutes = 60, sync_on_start = 60 }
+    package.loaded["github_stats.remote"] = {
+      active = function()
+        return true
+      end,
+      current = function()
+        return s
+      end,
+      start_sync_due = function()
+        due_calls = due_calls + 1
+        return due
+      end,
+      sync = function()
+        syncs = syncs + 1
+      end,
+    }
+    package.loaded["github_stats.background"] = nil
+    background = require("github_stats.background")
+    background.has_ui = function()
+      return true
+    end
+  end)
+
+  after_each(function()
+    background.stop()
+    package.loaded["github_stats.remote"] = real_remote
+    package.loaded["github_stats.background"] = nil
+  end)
+
+  ---@return function first, function recurring
+  local function captured()
+    local first, recurring
+    local real_defer_fn, real_new_timer = vim.defer_fn, vim.uv.new_timer
+    ---@diagnostic disable-next-line: duplicate-set-field
+    vim.defer_fn = function(fn)
+      first = fn
+    end
+    ---@diagnostic disable-next-line: duplicate-set-field
+    vim.uv.new_timer = function()
+      return {
+        start = function(_, _, _, cb)
+          recurring = cb
+        end,
+        stop = function() end,
+        close = function() end,
+        is_closing = function()
+          return true
+        end,
+      }
+    end
+    local ok, err = pcall(background.start)
+    vim.defer_fn, vim.uv.new_timer = real_defer_fn, real_new_timer
+    assert.is_true(ok, tostring(err))
+    return first, recurring
+  end
+
+  it("pulls on start when the last sync is old enough", function()
+    local first = captured()
+    first()
+    assert.equals(1, due_calls)
+    assert.equals(1, syncs)
+  end)
+
+  it("does not pull on start when the last sync is younger than sync_on_start", function()
+    due = false
+    local first = captured()
+    first()
+    assert.equals(0, syncs)
+  end)
+
+  it("pulls on the recurring cycle without asking the stamp", function()
+    due = false
+    local _, recurring = captured()
+    recurring()
+    vim.wait(50, function()
+      return syncs > 0
+    end, 5)
+    assert.equals(0, due_calls)
+    assert.equals(1, syncs)
+  end)
+
+  it("neither pulls nor reads the stamp on a headless start", function()
+    background.has_ui = function()
+      return false
+    end
+    local first = captured()
+    first()
+    assert.equals(0, due_calls)
+    assert.equals(0, syncs)
   end)
 end)
 

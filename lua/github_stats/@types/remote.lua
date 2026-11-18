@@ -12,6 +12,7 @@
 ---@field repo? string "owner/name" of the data repository
 ---@field dir? string Where it is cloned (default: `stdpath("data")/github_stats.nvim-vault`)
 ---@field pull_interval_minutes? integer How often a running editor pulls (default 60)
+---@field sync_on_start? boolean|integer Pull on start: true every start, false never, minutes = only when the last sync is at least that old (default: `pull_interval_minutes`)
 
 ---The resolved storage of this session.
 ---@class GHStats.Storage
@@ -19,6 +20,7 @@
 ---@field repo string|nil
 ---@field dir string
 ---@field pull_interval_minutes integer
+---@field sync_on_start integer|false Least age in minutes of the last sync before a start pulls (0: every start), false: never
 ---@field explicit_mode boolean The mode came from `setup()`
 ---@field deferred boolean The user chose "later" in the guide: it does not open by itself again
 

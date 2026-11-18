@@ -99,8 +99,9 @@ Where the history lives. **Remote**: a private data repository of yours, filled 
 day by a GitHub Actions workflow; every machine clones and pulls it and never fetches
 itself. **Local**: this Neovim fetches into `config_dir`/`data_dir`, as before. The
 table form takes `mode`, `repo` (`"owner/name"`), `dir` (the clone, default
-`stdpath('data') .. '/github_stats.nvim-vault'`) and `pull_interval_minutes` (default
-`60`). Setting `config_dir` or `data_dir` also means local.
+`stdpath('data') .. '/github_stats.nvim-vault'`), `pull_interval_minutes` (default
+`60`) and `sync_on_start` (pull on start only when the last sync is at least that many
+minutes old; default the pull interval, `true` every start, `false` never). Setting `config_dir` or `data_dir` also means local.
 
 ##### Example:
 ```lua

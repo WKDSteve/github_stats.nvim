@@ -45,6 +45,7 @@ To decide in the spec instead, one key:
 | `repo` | the guide's answer | the data repository, `owner/name` |
 | `dir` | `stdpath("data")/github_stats.nvim-vault` | where it is cloned on this machine |
 | `pull_interval_minutes` | `60` | how often a running editor pulls |
+| `sync_on_start` | `pull_interval_minutes` | pull on start only when the last sync is at least this many minutes old; `true` every start, `false` never |
 
 The mode is decided in this order, first match wins:
 
@@ -80,9 +81,14 @@ classic token.
 
 ## Day to day in remote mode
 
-- On start and every `pull_interval_minutes` the clone is pulled (fast-forward only).
-  When something arrived, the read memo is dropped and the digests other programs read
-  are rebuilt.
+- Every `pull_interval_minutes` the clone is pulled (fast-forward only). When something
+  arrived, the read memo is dropped and the digests other programs read are rebuilt.
+- On start it is pulled only when the last sync (of any session on this machine,
+  successful or not) is at least `sync_on_start` minutes old, by default one pull interval: ten
+  editors opened within the hour pull once, not ten times. The time is kept in
+  `stdpath("state")/github_stats.nvim-last-sync.json`. `sync_on_start = true` pulls on
+  every start, `false` never (the timer still pulls). Without a UI (`nvim --headless`,
+  a test run with the full config) there is no pull on start at all.
 - `:GithubStats sync` pulls now, after committing and pushing a changed `config.json`
   (the one file a machine writes; rebased onto the workflow's commits first).
 - `:GithubStats fetch` starts the workflow instead of fetching here, and pulls its

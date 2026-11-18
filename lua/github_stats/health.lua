@@ -404,8 +404,19 @@ function M.check()
     local background_enabled = not cfg or not cfg.background or cfg.background.enabled ~= false
     if background_enabled and remote_mode then
       local s = require("github_stats.remote").current() --[[@as GHStats.Storage]]
+      local minutes = s.sync_on_start
+      if minutes == nil then
+        minutes = s.pull_interval_minutes
+      end
+      local on_start = minutes == false and "never on start"
+        or (minutes or 0) <= 0 and "on every start"
+        or str_format("on start when the last sync is %d min old", minutes)
       health.ok(
-        str_format("Background cycle enabled: pulls the data repository every %d min (remote mode)", s.pull_interval_minutes)
+        str_format(
+          "Background cycle enabled: pulls the data repository every %d min, %s, never headless (remote mode)",
+          s.pull_interval_minutes,
+          on_start
+        )
       )
     elseif background_enabled then
       health.ok("Background fetch enabled (silent; only errors are notified)")

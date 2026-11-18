@@ -16,17 +16,35 @@ local M = {}
 ---@type uv.uv_timer_t?
 local timer = nil
 
+---Whether a UI is attached. Without one (`nvim --headless`, a test run with the full config) the first cycle is
+---skipped: nobody looks at the stats, and every such start would otherwise pull or fetch. Specs replace it.
+---@return boolean
+function M.has_ui()
+  return #vim.api.nvim_list_uis() > 0
+end
+
 ---@internal
 ---Run one background cycle: discover repos (if configured), then fetch
+---@param first? boolean the cycle right after start: skipped without a UI, and in remote mode when the last sync is
+---  younger than `storage.sync_on_start`
 ---@return nil
-local function run_cycle()
+local function run_cycle(first)
+  if first and not M.has_ui() then
+    return
+  end
+
   local config = require("github_stats.config")
   local fetcher = require("github_stats.fetcher")
 
   -- Remote mode: the workflow of the data repository fetches; this machine only pulls (and refreshes its digests
   -- when something arrived). Fetching here as well would fetch twice and leave changes in a clone nobody commits.
+  -- The pull on start runs at most once per `sync_on_start` minutes across sessions (a stamp file): ten editors
+  -- opened within the hour pull once, not ten times.
   local remote = require("github_stats.remote")
   if remote.active() then
+    if first and not remote.start_sync_due(remote.current() --[[@as GHStats.Storage]]) then
+      return
+    end
     remote.sync(nil, true)
     return
   end
@@ -108,13 +126,21 @@ function M.start()
   -- actually takes is a property of the user's config, not of this plugin --
   -- one second is plenty after a lean start and lands in the middle of a
   -- heavy one.
-  vim.defer_fn(run_cycle, initial_delay_ms(cfg))
+  vim.defer_fn(function()
+    run_cycle(true)
+  end, initial_delay_ms(cfg))
 
   -- Recurring cycles for the rest of the session
   timer = vim.uv.new_timer()
   if timer then
     local interval_ms = poll_interval_ms(cfg)
-    timer:start(interval_ms, interval_ms, vim.schedule_wrap(run_cycle))
+    timer:start(
+      interval_ms,
+      interval_ms,
+      vim.schedule_wrap(function()
+        run_cycle(false)
+      end)
+    )
   end
 end
 

@@ -275,6 +275,7 @@ describe("health", function()
       assert.is_false(reported("error", "Token error"))
       assert.is_true(reported("info", "Skipped in remote mode"))
       assert.is_true(reported("ok", "pulls the data repository every 60 min"))
+      assert.is_true(reported("ok", "on start when the last sync is 60 min old, never headless"))
       assert.is_true(reported("ok", "remote mode: data repository me/data"))
       -- an older pin still collects: info, not warn
       assert.is_true(reported("info", "its workflow runs github_stats.nvim at main"))

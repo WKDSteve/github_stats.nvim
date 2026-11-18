@@ -130,7 +130,9 @@ machine only clones and pulls it. On the first start a guide sets it up
 <
 `storage` takes "remote"/"local" or a table: `mode`, `repo` (owner/name),
 `dir` (the clone, default stdpath("data")/github_stats.nvim-vault),
-`pull_interval_minutes` (default 60). `config_dir` or `data_dir` in
+`pull_interval_minutes` (default 60), `sync_on_start` (pull on start only
+when the last sync is that many minutes old; default the pull interval,
+`true` every start, `false` never; never without a UI). `config_dir` or `data_dir` in
 `setup()` also mean local. In remote mode this machine never fetches: the
 background cycle and the dashboard's refresh keys pull, |:GithubStats-fetch|
 starts the workflow. Details: docs/FEATURES/REMOTE.md.

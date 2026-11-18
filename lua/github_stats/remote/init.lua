@@ -116,12 +116,29 @@ function M.resolve(opts, state)
   if interval < 1 then
     interval = 60
   end
+  interval = math.floor(interval)
+
+  -- The sync on start: nil follows the pull interval, true is every start, false never, a number of minutes is the
+  -- least age of the last sync before a start pulls again.
+  local on_start = given.sync_on_start
+  ---@type integer|false
+  local start_minutes = interval
+  if on_start == true then
+    start_minutes = 0
+  elseif on_start == false then
+    start_minutes = false
+  elseif type(on_start) == "number" and on_start >= 0 then
+    start_minutes = math.floor(on_start)
+  elseif on_start ~= nil then
+    err = ("storage.sync_on_start must be true, false or minutes >= 0, got %s"):format(vim.inspect(on_start))
+  end
 
   return {
     mode = mode,
     repo = given.repo or (M.valid_repo(state.repo) and state.repo or nil),
     dir = vim.fs.normalize(vim.fn.expand(dir)),
-    pull_interval_minutes = math.floor(interval),
+    pull_interval_minutes = interval,
+    sync_on_start = start_minutes,
     explicit_mode = given.mode ~= nil,
     deferred = state.deferred == true,
   },
@@ -303,6 +320,63 @@ function M.update_workflow(s, on_done)
   )
 end
 
+-- -----------------------------------------------------------------------------------------------
+-- The sync on start: at most once per `sync_on_start` minutes, remembered across sessions
+-- -----------------------------------------------------------------------------------------------
+
+---The clock the stamp is read and written with (seconds). Specs replace it.
+M.now = os.time
+
+---Where the time of the last sync attempt is kept: machine state, not data, so `stdpath("state")`.
+---@return string
+function M.stamp_file()
+  return vim.fn.stdpath("state") .. "/github_stats.nvim-last-sync.json"
+end
+
+---When a sync of the clone at `s.dir` last ran (successful or not), nil when never (or another clone's did).
+---@param s GHStats.Storage
+---@return integer|nil
+function M.last_sync(s)
+  local parsed = require("lib.nvim.fs.json").read(M.stamp_file())
+  if type(parsed) ~= "table" or parsed.dir ~= s.dir or type(parsed.time) ~= "number" then
+    return nil
+  end
+  return parsed.time
+end
+
+---Remember that a sync of the clone at `s.dir` ran now. A stamp that cannot be written only costs the next start a sync.
+---@param s GHStats.Storage
+---@return nil
+function M.mark_synced(s)
+  pcall(function()
+    vim.fn.mkdir(vim.fs.dirname(M.stamp_file()), "p")
+    require("lib.nvim.fs.json").write(M.stamp_file(), { time = M.now(), dir = s.dir })
+  end)
+end
+
+---Whether the sync on start is due: `sync_on_start` is not false and the last sync of this clone (in any session,
+---successful or not) is at least `sync_on_start` minutes old. A stamp from the future (a clock set back) is due.
+---@param s GHStats.Storage
+---@return boolean
+function M.start_sync_due(s)
+  local minutes = s.sync_on_start
+  if minutes == nil then
+    minutes = s.pull_interval_minutes
+  end
+  if minutes == false then
+    return false
+  end
+  if minutes == nil or minutes <= 0 then
+    return true
+  end
+  local last = M.last_sync(s)
+  if not last then
+    return true
+  end
+  local age = M.now() - last
+  return age < 0 or age >= minutes * 60
+end
+
 ---After new data arrived: forget what was read before and bring the digests other programs read up to date.
 ---@return nil
 local function after_new_data()
@@ -357,6 +431,9 @@ function M.sync(on_done, quiet)
       config.notify(("[github-stats] Pushing config.json failed: %s"):format(err_push or "?"), "warn")
     end
     M.pull(s, function(ok, err, changed)
+      -- Stamped whether it worked or not: a pull that fails every time (a clone git refuses to fast-forward) would
+      -- otherwise cost every start its processes and a round trip again. The recurring cycle retries anyway.
+      M.mark_synced(s)
       if not ok then
         config.notify(("[github-stats] Pulling %s failed: %s"):format(s.repo or s.dir, err or "?"), "warn")
       else

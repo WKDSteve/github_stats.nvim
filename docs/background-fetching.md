@@ -9,8 +9,14 @@ for the catalog entry, [FEATURES/FETCHING.md](FEATURES/FETCHING.md).
 > in a data repository ([FEATURES/REMOTE.md](FEATURES/REMOTE.md)), the same
 > cycle and timer only *pull* that repository: the first cycle after
 > `initial_delay_ms`, then every `storage.pull_interval_minutes` (default 60).
-> A pull that brought something drops the read memo and rebuilds stale
-> digests. Everything below describes the fetch of local mode.
+> The first cycle pulls only when the last sync is at least
+> `storage.sync_on_start` minutes old (a stamp under `stdpath("state")`,
+> shared by all sessions). A pull that brought something drops the read memo
+> and rebuilds stale digests. Everything below describes the fetch of local mode.
+>
+> **Without a UI** (`nvim --headless`, a test run with the full config) the
+> first cycle is skipped in both modes: no pull, no fetch, no process. The
+> recurring timer still runs; manual commands are never held back.
 
 ## Entry point
 

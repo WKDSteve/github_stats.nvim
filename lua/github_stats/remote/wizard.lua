@@ -391,7 +391,7 @@ local function flow(opts)
   note({
     "Remote mode is set up: " .. repo,
     "",
-    "  - The workflow collects every day; this Neovim pulls on start and every hour.",
+    "  - The workflow collects every day; this Neovim pulls every hour (on start: when the last pull is an hour old).",
     "  - :GithubStats sync pulls now; :GithubStats fetch starts the workflow.",
     "  - On another machine: the same repository is found by :GithubStats setup,",
     "    or put storage = { repo = '" .. repo .. "' } into the plugin spec.",

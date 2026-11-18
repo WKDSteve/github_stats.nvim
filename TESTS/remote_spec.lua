@@ -12,6 +12,7 @@
 describe("remote", function()
   local remote, proc, tmp
   local real_exec, real_git, real_state_file, real_default_dir
+  local real_stamp_file, real_now, clock
   local calls, answers
 
   ---Answer a command whose line starts with `prefix` (joined by spaces).
@@ -73,6 +74,14 @@ describe("remote", function()
     remote.default_dir = function()
       return tmp .. "/vault"
     end
+    real_stamp_file, real_now = remote.stamp_file, remote.now
+    remote.stamp_file = function()
+      return tmp .. "/state/last-sync.json"
+    end
+    clock = 1000000
+    remote.now = function()
+      return clock
+    end
     calls, answers = {}, {}
     proc.exec = fake_exec
     -- lib.nvim.git, routed through the same scripted answers (and the same command lines) as everything else; the
@@ -113,6 +122,7 @@ describe("remote", function()
     proc.exec = real_exec
     remote.git = real_git
     remote.state_file, remote.default_dir = real_state_file, real_default_dir
+    remote.stamp_file, remote.now = real_stamp_file, real_now
     remote.set_current(nil)
     vim.fn.delete(tmp, "rf")
   end)
@@ -174,6 +184,65 @@ describe("remote", function()
       assert.is_true(remote.active())
       remote.set_current(remote.resolve({ storage = "local" }, {}))
       assert.is_false(remote.active())
+    end)
+  end)
+
+  describe("sync on start", function()
+    local function storage(sync_on_start)
+      return remote.resolve({ storage = { repo = "me/data", sync_on_start = sync_on_start } }, {})
+    end
+
+    it("follows the pull interval by default; true is every start, false never, a number is minutes", function()
+      assert.equals(60, storage(nil).sync_on_start)
+      assert.equals(15, remote.resolve({ storage = { pull_interval_minutes = 15 } }, {}).sync_on_start)
+      assert.equals(0, storage(true).sync_on_start)
+      assert.is_false(storage(false).sync_on_start)
+      assert.equals(240, storage(240.7).sync_on_start)
+      assert.equals(0, storage(0).sync_on_start)
+    end)
+
+    it("reports and ignores a wrong value", function()
+      local s, err = remote.resolve({ storage = { sync_on_start = "hourly" } }, {})
+      assert.equals(60, s.sync_on_start)
+      assert.matches("sync_on_start", err)
+      local s2, err2 = remote.resolve({ storage = { sync_on_start = -1 } }, {})
+      assert.equals(60, s2.sync_on_start)
+      assert.matches("sync_on_start", err2)
+    end)
+
+    it("is due without a stamp, and again once the stamp is sync_on_start minutes old", function()
+      local s = storage(60)
+      assert.is_true(remote.start_sync_due(s))
+      remote.mark_synced(s)
+      assert.is_false(remote.start_sync_due(s))
+      clock = clock + 59 * 60
+      assert.is_false(remote.start_sync_due(s))
+      clock = clock + 60
+      assert.is_true(remote.start_sync_due(s))
+    end)
+
+    it("is always due with true (0), never with false, whatever the stamp says", function()
+      local always, never = storage(true), storage(false)
+      remote.mark_synced(always)
+      assert.is_true(remote.start_sync_due(always))
+      assert.is_false(remote.start_sync_due(never))
+      vim.fn.delete(tmp .. "/state", "rf")
+      assert.is_false(remote.start_sync_due(never))
+    end)
+
+    it("is due for a stamp of another clone, a stamp from the future, and a broken stamp", function()
+      local s = storage(60)
+      remote.mark_synced(remote.resolve({ storage = { dir = tmp .. "/other" } }, {}))
+      assert.is_true(remote.start_sync_due(s))
+
+      remote.mark_synced(s)
+      clock = clock - 10
+      assert.is_true(remote.start_sync_due(s))
+
+      local fd = assert(io.open(remote.stamp_file(), "wb"))
+      fd:write("not json")
+      fd:close()
+      assert.is_true(remote.start_sync_due(s))
     end)
   end)
 
@@ -278,6 +347,26 @@ describe("remote", function()
       assert.is_not_nil(call_of("git -C " .. tmp .. "/vault pull --rebase"))
       assert.is_not_nil(call_of("git -C " .. tmp .. "/vault push"))
       assert.equals(0, invalidated)
+    end)
+
+    it("stamps a successful sync, so the next start within sync_on_start does not pull again", function()
+      local s = remote.current() --[[@as GHStats.Storage]]
+      assert.is_nil(remote.last_sync(s))
+      remote.sync(nil, true)
+      assert.equals(clock, remote.last_sync(s))
+      assert.is_false(remote.start_sync_due(s))
+    end)
+
+    it("stamps a failed pull too: a pull that always fails does not cost every start again", function()
+      answer("git -C " .. tmp .. "/vault pull", { ok = false, code = 1, stderr = "error: untracked files; Aborting" })
+      remote.sync(nil, true)
+      assert.equals(clock, remote.last_sync(remote.current() --[[@as GHStats.Storage]]))
+    end)
+
+    it("does not stamp without a data repository: nothing was attempted", function()
+      remote.set_current(nil)
+      remote.sync(nil, true)
+      assert.is_nil(remote.last_sync(remote.resolve({ storage = { repo = "me/data" } }, {})))
     end)
 
     it("reports a failed pull and keeps what was there", function()

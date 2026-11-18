@@ -541,8 +541,9 @@ accepts a workflow file only from a token with the `workflow` scope:
 
 ### No new data although the workflow ran
 
-The editor pulls on start and every `storage.pull_interval_minutes` (default
-60). `:GithubStats sync` pulls now. `:GithubStats fetch` starts the workflow
+The editor pulls every `storage.pull_interval_minutes` (default 60), and on
+start only when the last sync is at least `storage.sync_on_start` minutes old
+(default: the pull interval; never headless). `:GithubStats sync` pulls now. `:GithubStats fetch` starts the workflow
 and pulls its result about two and a half minutes later.
 
 ---

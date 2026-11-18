@@ -63,7 +63,9 @@ Opens by itself once on the first start. See
 
 Remote mode only: commits and pushes a changed `config.json` (rebased onto the
 workflow's commits), then pulls the data repository fast-forward. The editor
-does the same quietly on start and every `storage.pull_interval_minutes`.
+does the same quietly every `storage.pull_interval_minutes`, and on start when
+the last sync is at least `storage.sync_on_start` minutes old. This command is
+never held back.
 
 ---
 
