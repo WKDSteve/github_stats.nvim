@@ -42,7 +42,9 @@ local function run_cycle(first)
   -- opened within the hour pull once, not ten times.
   local remote = require("github_stats.remote")
   if remote.active() then
-    if first and not remote.start_sync_due(remote.current() --[[@as GHStats.Storage]]) then
+    if
+      first and not remote.start_sync_due(remote.current() --[[@as GHStats.Storage]])
+    then
       return
     end
     remote.sync(nil, true)
