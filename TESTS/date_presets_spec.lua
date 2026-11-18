@@ -342,3 +342,30 @@ describe("date_presets catalogue", function()
     end)
   end)
 end)
+
+describe("date_presets on a fixed day (lib.lua.time.presets)", function()
+  -- Wednesday 2026-10-14, midday.
+  local NOW = os.time({ year = 2026, month = 10, day = 14, hour = 12 })
+  local expected = {
+    today = { "2026-10-14", "2026-10-14" },
+    yesterday = { "2026-10-13", "2026-10-13" },
+    last_week = { "2026-10-07", "2026-10-14" },
+    last_month = { "2026-09-14", "2026-10-14" },
+    last_quarter = { "2026-07-16", "2026-10-14" },
+    last_year = { "2025-10-14", "2026-10-14" },
+    this_week = { "2026-10-12", "2026-10-14" },
+    this_month = { "2026-10-01", "2026-10-14" },
+    this_quarter = { "2026-10-01", "2026-10-14" },
+    this_year = { "2026-01-01", "2026-10-14" },
+  }
+
+  it("every built-in names its first and last day", function()
+    package.loaded["github_stats.date_presets"] = nil
+    local date_presets = require("github_stats.date_presets")
+    for name, days in pairs(expected) do
+      local start, end_date, err = date_presets.resolve(name, NOW)
+      assert.is_nil(err, name)
+      assert.are.same(days, { start, end_date }, name)
+    end
+  end)
+end)
