@@ -368,4 +368,19 @@ describe("date_presets on a fixed day (lib.lua.time.presets)", function()
       assert.are.same(days, { start, end_date }, name)
     end
   end)
+
+  it("an open preset resolved at 00:00:00 sharp still ends today", function()
+    package.loaded["github_stats.date_presets"] = nil
+    local date_presets = require("github_stats.date_presets")
+    local midnight = os.time({ year = 2026, month = 10, day = 14, hour = 0 })
+    for name, days in pairs({
+      today = { "2026-10-14", "2026-10-14" },
+      yesterday = { "2026-10-13", "2026-10-13" },
+      last_week = { "2026-10-07", "2026-10-14" },
+      this_month = { "2026-10-01", "2026-10-14" },
+    }) do
+      local start, end_date = date_presets.resolve(name, midnight)
+      assert.are.same(days, { start, end_date }, name)
+    end
+  end)
 end)

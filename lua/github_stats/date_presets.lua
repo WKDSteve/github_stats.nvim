@@ -12,10 +12,12 @@ local lib_presets = require("lib.lua.time.presets")
 
 ---Resolve a lib range constructor to the first and the last day it covers.
 ---@param range fun(now: integer): LibTimeRange
+---@param open? boolean the range ends at now (this_month, last_week, ...): it covers today even
+---  when resolved at 00:00:00 sharp
 ---@return fun(now?: integer): string, string
-local function days_of(range)
+local function days_of(range, open)
   return function(now)
-    return lib_presets.dates(range(now or os.time()))
+    return lib_presets.dates(range(now or os.time()), open)
   end
 end
 
@@ -25,7 +27,7 @@ end
 local function rolling(n)
   return days_of(function(now)
     return lib_presets.days_ago(n, now) --[[@as LibTimeRange]]
-  end)
+  end, true)
 end
 
 ---Built-in preset resolver functions: each returns the first and the last ISO day
@@ -33,17 +35,17 @@ end
 ---(local midnights by calendar arithmetic, weeks from Monday).
 ---@type table<string, fun(now?: integer): string, string>
 local BUILTIN_PRESETS = {
-  today = days_of(lib_presets.today),
+  today = days_of(lib_presets.today, true),
   yesterday = days_of(lib_presets.yesterday),
   -- The `last_*` presets are rolling windows ending today, not calendar units.
   last_week = rolling(7),
   last_month = rolling(30),
   last_quarter = rolling(90),
   last_year = rolling(365),
-  this_week = days_of(lib_presets.this_week),
-  this_month = days_of(lib_presets.this_month),
-  this_quarter = days_of(lib_presets.this_quarter),
-  this_year = days_of(lib_presets.this_year),
+  this_week = days_of(lib_presets.this_week, true),
+  this_month = days_of(lib_presets.this_month, true),
+  this_quarter = days_of(lib_presets.this_quarter, true),
+  this_year = days_of(lib_presets.this_year, true),
 }
 
 ---Get list of all available preset names
