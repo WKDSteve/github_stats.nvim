@@ -1,8 +1,9 @@
--- Live check: `:GithubStats export`, `digest`, `compact dry-run` and `debug` on stored data.
+-- Live check: `:GithubStats export` on stored data (digest, compact and debug have feature sheets of their own:
+-- ghs-digest, ghs-retention, ghs-diagnostics).
 return {
   id = "ghs.data",
   feature = "github_stats.export",
-  title = ":GithubStats export, digest, compact dry-run and debug",
+  title = ":GithubStats export to CSV and Markdown",
   task = "github_stats.nvim/testblatt-bindings-checkliste",
   sizes = { { rows = 40, cols = 120 } },
   steps = {
@@ -17,21 +18,8 @@ return {
     { expect = [[vim.fn.filereadable(_G.out .. "/Both.md") == 1]], note = "export both writes the Markdown report" },
     { lua = [[_G.forget(); vim.cmd("GithubStats export me/proj clones " .. _G.out .. "/x.txt")]] },
     { expect = [[_G.noted("File must have .csv, .md or .pdf extension")]], note = "another extension is refused" },
-    { lua = [[_G.forget(); vim.cmd("GithubStats digest")]] },
-    {
-      expect = [[_G.noted("Digest: 1 written, 0 unchanged, 0 without history") and not _G.noted("Digest error")]],
-      note = "digest writes the one repository's digest, without an error",
-    },
-    { lua = [[_G.forget(); vim.cmd("GithubStats compact dry-run")]] },
-    {
-      expect = [[_G.noted("Dry run: archived ") and _G.noted("would remove") and not _G.noted("Retention error")]],
-      note = "compact dry-run only previews the archive, without an error",
-    },
-    { expect = [[vim.fn.filereadable(_G.out .. "/Clones.csv") == 1]], note = "and the stored files are still there" },
-    { lua = [[vim.cmd("GithubStats debug")]] },
-    { wait = [[_G.floattext():find("me/proj", 1, true) ~= nil]], note = "debug lists the configured repository" },
   },
   manual = {
-    ":GithubStats debug tests the API connection with a real token (GITHUB_TOKEN) -- run it once on a machine with one",
+    ":GithubStats export me/proj both <file>.pdf writes a PDF where a converter is installed (pandoc/wkhtmltopdf)",
   },
 }

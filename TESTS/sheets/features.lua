@@ -2,6 +2,8 @@
 -- report` says which ones have a feature sheet (`feature = "<id>"`) and in which state, and K16 warns about a sheet
 -- that names an id not listed here. Data: read with an empty environment like a sheet (testing.nvim docs/SHEETS.md).
 -- The list follows docs/what-you-get.md, docs/FEATURES/ and ALL/manual-test-checklists/github_stats.md.
+-- Every functionality has a feature sheet; those that reach GitHub (`curl`, `gh`) talk to the stand-in
+-- fixtures/fake_github.lua instead (fixtures/redirect.lua), the data repository is a local bare repository.
 return {
   {
     id = "github_stats.fetch",
@@ -12,7 +14,13 @@ return {
   {
     id = "github_stats.remote",
     title = "The history lives in a private data repository GitHub Actions fills daily; every machine only pulls it",
-    surface = { "command:GithubStats setup", "command:GithubStats sync" },
+    surface = { "command:GithubStats sync" },
+    docs = "docs/FEATURES/REMOTE.md",
+  },
+  {
+    id = "github_stats.setup-guide",
+    title = "The setup guide asks where the history lives and sets up the data repository through gh",
+    surface = { "command:GithubStats setup" },
     docs = "docs/FEATURES/REMOTE.md",
   },
   {
