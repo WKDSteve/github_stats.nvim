@@ -12,8 +12,9 @@ for i = 3, #arg do
 end
 
 -- One file per call: the fetch starts four of these at once, and appends of parallel processes to one shared file
--- lose lines on Windows. The name sorts by start time (the pid keeps two in the same nanosecond apart).
-vim.fn.mkdir(state .. "/calls", "p")
+-- lose lines on Windows. The name sorts by start time (the pid keeps two in the same nanosecond apart). The folder
+-- is made by the sheet (`_G.fake_github()`): four stand-ins racing to create it made `mkdir` fail in the loser.
+pcall(vim.fn.mkdir, state .. "/calls", "p")
 local name = ("%s/calls/%020d-%d.json"):format(state, vim.uv.hrtime(), vim.uv.os_getpid())
 local log = io.open(name, "w")
 if log then

@@ -77,7 +77,8 @@ end
 function _G.fake_github()
   local root = vim.fn.getcwd() .. "/TESTS/sheets/fixtures"
   _G.fake_state = vim.fn.tempname()
-  vim.fn.mkdir(_G.fake_state, "p")
+  -- the stand-in's log folder exists before any stand-in runs (parallel ones would race to create it)
+  vim.fn.mkdir(_G.fake_state .. "/calls", "p")
   _G.token_file = _G.fake_state .. "/token"
   vim.fn.writefile({ "sheet-dummy-token" }, _G.token_file)
   local text = table.concat(vim.fn.readfile(root .. "/redirect.lua"), "\n")
