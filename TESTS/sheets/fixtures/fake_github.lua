@@ -4,16 +4,20 @@
 -- (a 200 with headers, as `curl -i` prints it), `gh repo clone` clones the local bare repository named in
 -- `<state-dir>/origin.txt`, `gh api user` answers "me", `gh repo view` says the repository exists, `gh secret list`
 -- lists the workflow's secret, every other `gh` call succeeds silently. Each call is one
--- JSON line in `<state-dir>/calls.jsonl` (`{ "program": ..., "argv": [...] }`), which a sheet reads.
+-- JSON file in `<state-dir>/calls/` (`{ "program": ..., "argv": [...] }`), which a sheet reads (`_G.calls()`).
 local state, program = arg[1], arg[2]
 local argv = {}
 for i = 3, #arg do
   argv[#argv + 1] = arg[i]
 end
 
-local log = io.open(state .. "/calls.jsonl", "a")
+-- One file per call: the fetch starts four of these at once, and appends of parallel processes to one shared file
+-- lose lines on Windows. The name sorts by start time (the pid keeps two in the same nanosecond apart).
+vim.fn.mkdir(state .. "/calls", "p")
+local name = ("%s/calls/%020d-%d.json"):format(state, vim.uv.hrtime(), vim.uv.os_getpid())
+local log = io.open(name, "w")
 if log then
-  log:write(vim.json.encode({ program = program, argv = argv }), "\n")
+  log:write(vim.json.encode({ program = program, argv = argv }))
   log:close()
 end
 

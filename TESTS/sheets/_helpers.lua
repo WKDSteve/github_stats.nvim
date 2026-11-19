@@ -89,13 +89,11 @@ end
 ---@return { program: string, argv: string[] }[]
 function _G.calls(program)
   local out = {}
-  local path = _G.fake_state .. "/calls.jsonl"
-  if vim.fn.filereadable(path) == 0 then
-    return out
-  end
-  for _, line in ipairs(vim.fn.readfile(path)) do
-    local ok, call = pcall(vim.json.decode, line)
-    if ok and (not program or call.program == program) then
+  local files = vim.fn.glob(_G.fake_state .. "/calls/*.json", true, true)
+  table.sort(files)
+  for _, path in ipairs(files) do
+    local ok, call = pcall(vim.json.decode, table.concat(vim.fn.readfile(path), "\n"))
+    if ok and type(call) == "table" and (not program or call.program == program) then
       out[#out + 1] = call
     end
   end
