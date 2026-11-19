@@ -201,16 +201,22 @@ function M.setup_keymaps(buf)
     require("github_stats.dashboard").schedule_render(true)
   end, "GitHub Stats: re-read from disk and refresh")
 
+  -- Re-render once a fetch the two keys below started is done: without it the dashboard kept showing the numbers
+  -- from before the fetch until something else redrew it (integrations/menu.lua passes the same callback).
+  local function render_after_fetch()
+    require("github_stats.dashboard").schedule_render(true)
+  end
+
   -- Refresh all: configurable (default R) -- force-fetches every configured repo
   map_key(buf, keybindings.refresh_all, function()
     config.notify("[github-stats] Refreshing all repositories...", "info")
-    actions.refresh_all()
+    actions.refresh_all(render_after_fetch)
   end, "GitHub Stats: refresh all repositories")
 
   -- Force refresh: configurable (default f) -- force-fetches the selected repo
   map_key(buf, keybindings.force_refresh, function()
     config.notify("[github-stats] Force-refreshing selected repository...", "info")
-    actions.force_refresh_selected()
+    actions.force_refresh_selected(render_after_fetch)
   end, "GitHub Stats: force refresh selected repository")
 
   -- Cycle sort: configurable (default s)
