@@ -83,4 +83,19 @@ return {
       },
     },
   },
+  ci = {
+    -- The GitHub workflow, generated: `testing init --workflow=public --force` writes .github/workflows/ci.yml from
+    -- this (testing.nvim docs/WORKFLOW-CI.md); the step workflow-in-sync keeps the two together.
+    workflow = {
+      name = "github_stats.nvim",
+      layout = "hosted",
+      -- the steps that depend on the platform: the windows and macOS legs run only these
+      platform = { "suite", "conformance" },
+      -- `testing ci land`: a check branch ci/** runs the hosted legs, main moves to a commit only once it is green there
+      land = true,
+    },
+    steps = {
+      ["workflow-in-sync"] = { preset = "workflow-in-sync" },
+    },
+  },
 }
