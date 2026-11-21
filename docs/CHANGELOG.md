@@ -24,6 +24,10 @@ dashboard bang, `dashboard.close()` crash, `setup(opts)` forwarding — are
 documented as part of the features they affect in
 [`docs/FEATURES/`](FEATURES/README.md), not repeated here.)
 
+### Fixed
+- The first-start clone of a known data repository waits for an attached UI (checked 500 ms after `VimEnter`) and is skipped
+  without one or when `vim.g.github_stats_no_clone_on_start` is set, so headless runs and test sandboxes start no `gh repo clone`.
+
 ### Added
 - **Remote mode, the new default** (`github_stats.remote`,
   [`docs/FEATURES/REMOTE.md`](FEATURES/REMOTE.md)): the history lives in a

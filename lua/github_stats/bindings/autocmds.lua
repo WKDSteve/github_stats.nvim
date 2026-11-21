@@ -26,19 +26,28 @@ function M.setup()
     local storage = remote.current()
     local status = storage and remote.status(storage)
     if storage and status == "clone" then
-      remote.clone(storage, function(ok, err)
-        local config = require("github_stats.config")
-        if ok then
-          config.notify(("[github-stats] Cloned the data repository %s"):format(storage.repo), "info")
-          require("github_stats").reload_storage()
-        else
-          config.notify(
-            ("[github-stats] Cloning %s failed: %s (fetching locally meanwhile)"):format(storage.repo, err or "?"),
-            "warn"
-          )
-          background.start()
+      -- Like the first background cycle, the clone needs somebody looking: without a UI (headless, a test run with
+      -- the full config) nothing is cloned. The UI of a test child only attaches shortly after VimEnter, so the
+      -- check runs after a short delay, and a session that opts out (`vim.g.github_stats_no_clone_on_start`, set by
+      -- a sandbox) clones nothing either.
+      vim.defer_fn(function()
+        if vim.g.github_stats_no_clone_on_start or not background.has_ui() then
+          return
         end
-      end)
+        remote.clone(storage, function(ok, err)
+          local config = require("github_stats.config")
+          if ok then
+            config.notify(("[github-stats] Cloned the data repository %s"):format(storage.repo), "info")
+            require("github_stats").reload_storage()
+          else
+            config.notify(
+              ("[github-stats] Cloning %s failed: %s (fetching locally meanwhile)"):format(storage.repo, err or "?"),
+              "warn"
+            )
+            background.start()
+          end
+        end)
+      end, 500)
     else
       background.start()
     end

@@ -300,6 +300,7 @@ describe("plugin autocmds", function()
   local autocmds, config
   local tmp_dir
   local background_started, dashboard_opens
+  local ui_attached
   local saved = {}
   local real_defer_fn
 
@@ -328,8 +329,13 @@ describe("plugin autocmds", function()
   before_each(function()
     saved = {}
     background_started, dashboard_opens = 0, {}
+    ui_attached = true
+    vim.g.github_stats_no_clone_on_start = nil
 
     stub("github_stats.background", {
+      has_ui = function()
+        return ui_attached
+      end,
       start = function()
         background_started = background_started + 1
       end,
@@ -358,6 +364,7 @@ describe("plugin autocmds", function()
   end)
 
   after_each(function()
+    vim.g.github_stats_no_clone_on_start = nil
     pcall(vim.api.nvim_del_augroup_by_name, "GithubStatsAutoFetch")
     for name, boxed in pairs(saved) do
       package.loaded[name] = boxed[1]
@@ -417,6 +424,50 @@ describe("plugin autocmds", function()
     fire_vim_enter()
 
     assert.equals(0, #dashboard_opens)
+  end)
+  describe("a remote data repository that is not cloned yet", function()
+    local clones
+
+    before_each(function()
+      clones = 0
+      local storage = { repo = "owner/vault" }
+      stub("github_stats.remote", {
+        current = function()
+          return storage
+        end,
+        status = function()
+          return "clone"
+        end,
+        clone = function()
+          clones = clones + 1
+        end,
+      })
+      stub("github_stats.remote.wizard", {
+        should_auto_open = function()
+          return false
+        end,
+      })
+    end)
+
+    it("is cloned once a UI is attached", function()
+      autocmds.setup()
+      fire_vim_enter()
+      assert.equals(1, clones)
+    end)
+
+    it("is not cloned without a UI", function()
+      ui_attached = false
+      autocmds.setup()
+      fire_vim_enter()
+      assert.equals(0, clones)
+    end)
+
+    it("is not cloned when the session opts out", function()
+      vim.g.github_stats_no_clone_on_start = true
+      autocmds.setup()
+      fire_vim_enter()
+      assert.equals(0, clones)
+    end)
   end)
 end)
 
